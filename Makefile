@@ -58,7 +58,7 @@ USE_FPU = no
 #
 
 # Define project name here
-PROJECT = ch
+PROJECT = can2usb
 
 # Imported source files and paths
 CHIBIOS = ChibiOS
