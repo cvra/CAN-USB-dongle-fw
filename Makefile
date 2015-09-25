@@ -184,4 +184,4 @@ tests: CMakeLists.txt
 
 .PHONY: flash
 flash: build/$(PROJECT).elf
-	openocd -f openocd.cfg -c "program build/ch.elf verify reset" -c "shutdown"
+	openocd -f openocd.cfg -c "program build/$(PROJECT).elf verify reset" -c "shutdown"
