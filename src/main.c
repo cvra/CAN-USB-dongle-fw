@@ -2,8 +2,7 @@
 #include <hal.h>
 #include <chprintf.h>
 #include "usbcfg.h"
-
-#include <string.h>
+#include "can_bridge.h"
 
 static THD_WORKING_AREA(waThread1, 128);
 static THD_FUNCTION(Thread1, arg) {
@@ -53,25 +52,10 @@ int main(void)
     while (SDU1.config->usbp->state != USB_ACTIVE) {
         chThdSleepMilliseconds(10);
     }
-    chprintf((BaseSequentialStream *)&SDU1, "start\n");
 
-    // CAN gpio init
-    iomode_t mode = PAL_STM32_MODE_ALTERNATE | PAL_STM32_OTYPE_PUSHPULL
-        | PAL_STM32_OSPEED_HIGHEST | PAL_STM32_PUDR_FLOATING
-        | PAL_STM32_ALTERNATE(9);
-    palSetPadMode(GPIOB, GPIOB_PIN8, mode); // RX
-    palSetPadMode(GPIOB, GPIOB_PIN9, mode); // TX
-
-    canStart(&CAND1, &can1_config);
+    can_bridge_start((BaseSequentialStream *)&SDU1);
 
     while (1) {
-        CANTxFrame txf;
-        txf.SID = 42;
-        txf.IDE = 0;
-        txf.RTR = 0;
-        txf.DLC = 4;
-        memcpy(&txf.data8[0], "CVRA", 4);
-        canTransmit(&CAND1, CAN_ANY_MAILBOX, &txf, MS2ST(100));
-        chThdSleepMilliseconds(500);
+        chThdSleepMilliseconds(1000);
     }
 }
