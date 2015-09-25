@@ -168,7 +168,8 @@ ULIBS =
 
 GLOBAL_SRC_DEP = src/src.mk
 
-include rules.mk
+RULESPATH = .
+include $(RULESPATH)/rules.mk
 
 CMakeLists.txt: package.yml
 	python packager/packager.py
