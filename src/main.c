@@ -17,6 +17,12 @@ static THD_FUNCTION(Thread1, arg) {
     }
 }
 
+void panic(const char *reason)
+{
+    (void) reason;
+    while (1);
+}
+
 static const CANConfig can1_config = {
     .mcr = (1 << 6)  /* Automatic bus-off management enabled. */
          | (1 << 2), /* Message are prioritized by order of arrival. */
