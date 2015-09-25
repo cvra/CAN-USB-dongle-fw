@@ -4,3 +4,18 @@
 [submodule "packager"]
 	path = packager
 	url = https://github.com/cvra/packager.git
+[submodule "src/serial-can-bridge"]
+	path = src/serial-can-bridge
+	url = https://github.com/cvra/serial-can-bridge
+[submodule "src/serial-datagram"]
+	path = src/serial-datagram
+	url = https://github.com/Stapelzeiger/serial-datagram
+[submodule "src/cmp_mem_access"]
+	path = src/cmp_mem_access
+	url = https://github.com/cvra/cmp_mem_access
+[submodule "src/cmp"]
+	path = src/cmp
+	url = https://github.com/cvra/cmp
+[submodule "src/crc"]
+	path = src/crc
+	url = https://github.com/cvra/crc
