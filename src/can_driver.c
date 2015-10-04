@@ -5,8 +5,8 @@
 #include "can_bridge.h"
 #include "can_driver.h"
 
-#define CAN_RX_BUFFER_SIZE   100
-#define CAN_TX_BUFFER_SIZE   100
+#define CAN_RX_BUFFER_SIZE   10
+#define CAN_TX_BUFFER_SIZE   300
 
 memory_pool_t can_rx_pool;
 memory_pool_t can_tx_pool;
