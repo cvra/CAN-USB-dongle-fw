@@ -122,3 +122,20 @@ bool mmc_lld_is_write_protected(MMCDriver *mmcp) {
  */
 void boardInit(void) {
 }
+
+#if HAL_USE_USB
+void usb_lld_disconnect_bus(void *arg)
+{
+    (void)arg;
+    palSetPadMode(GPIOA, GPIOA_OTG_FS_DM, PAL_MODE_OUTPUT_OPENDRAIN);
+    palSetPadMode(GPIOA, GPIOA_OTG_FS_DP, PAL_MODE_OUTPUT_OPENDRAIN);
+    palClearPort(GPIOA, GPIOA_OTG_FS_DM | GPIOA_OTG_FS_DP);
+}
+
+void usb_lld_connect_bus(void *arg)
+{
+    (void)arg;
+    palSetPadMode(GPIOA, GPIOA_OTG_FS_DM, PAL_MODE_ALTERNATE(10));
+    palSetPadMode(GPIOA, GPIOA_OTG_FS_DP, PAL_MODE_ALTERNATE(10));
+}
+#endif

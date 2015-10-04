@@ -44,10 +44,10 @@ int main(void)
     sduObjectInit(&SDU1);
     sduStart(&SDU1, &serusbcfg);
 
-    // usbDisconnectBus(serusbcfg.usbp);
+    usbDisconnectBus(serusbcfg.usbp);
     chThdSleepMilliseconds(1500);
     usbStart(serusbcfg.usbp, &usbcfg);
-    // usbConnectBus(serusbcfg.usbp);
+    usbConnectBus(serusbcfg.usbp);
 
     while (SDU1.config->usbp->state != USB_ACTIVE) {
         chThdSleepMilliseconds(10);
