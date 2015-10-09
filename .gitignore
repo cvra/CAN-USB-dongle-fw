@@ -1,0 +1,23 @@
+*.o
+*.elf
+*.hex
+*.bin
+*.lst
+*.list
+*.dmp
+*.size
+*.addr
+
+# ChibiOS build folder
+build/*
+.dep/
+
+# python
+*.pyc
+
+# ctags
+.tags
+.tags_sorted_by_file
+
+# packeger
+src/src.mk
