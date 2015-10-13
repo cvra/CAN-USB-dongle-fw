@@ -17,14 +17,16 @@
 #include "ch.h"
 #include "hal.h"
 
-SerialUSBDriver SDU1;
-
 /*
  * Endpoints to be used for USBD1.
  */
-#define USBD1_DATA_REQUEST_EP           1
-#define USBD1_DATA_AVAILABLE_EP         1
-#define USBD1_INTERRUPT_REQUEST_EP      2
+#define USBD1_CDC1_DATA_REQUEST_EP           1
+#define USBD1_CDC1_DATA_AVAILABLE_EP         1
+#define USBD1_CDC1_INTERRUPT_REQUEST_EP      2
+
+#define USBD1_CDC2_DATA_REQUEST_EP           3
+#define USBD1_CDC2_DATA_AVAILABLE_EP         3
+#define USBD1_CDC2_INTERRUPT_REQUEST_EP      4
 
 /*
  * USB Device Descriptor.
@@ -53,14 +55,22 @@ static const USBDescriptor vcom_device_descriptor = {
 };
 
 /* Configuration Descriptor tree for a CDC.*/
-static const uint8_t vcom_configuration_descriptor_data[67] = {
+static const uint8_t vcom_configuration_descriptor_data[141] = {
   /* Configuration Descriptor.*/
-  USB_DESC_CONFIGURATION(67,            /* wTotalLength.                    */
-                         0x02,          /* bNumInterfaces.                  */
+  USB_DESC_CONFIGURATION(141,           /* wTotalLength.                    */
+                         0x04,          /* bNumInterfaces.                  */
                          0x01,          /* bConfigurationValue.             */
                          0,             /* iConfiguration.                  */
                          0xC0,          /* bmAttributes (self powered).     */
                          50),           /* bMaxPower (100mA).               */
+  /* CDC1 */
+  /* Interface Association Descriptor. */
+  USB_DESC_INTERFACE_ASSOCIATION(0x00,  /* bFirstInterface                  */
+                                 0x02,  /* bInterfaceCount                  */
+                                 0x02,  /* bFunctionClass                   */
+                                 0x00,  /* bFunctionSubClass                */
+                                 0x01,  /* bFunctionProcotol                */
+                                 0),    /* iInterface                       */
   /* Interface Descriptor.*/
   USB_DESC_INTERFACE    (0x00,          /* bInterfaceNumber.                */
                          0x00,          /* bAlternateSetting.               */
@@ -102,7 +112,7 @@ static const uint8_t vcom_configuration_descriptor_data[67] = {
   USB_DESC_BYTE         (0x01),         /* bSlaveInterface0 (Data Class
                                            Interface).                      */
   /* Endpoint 2 Descriptor.*/
-  USB_DESC_ENDPOINT     (USBD1_INTERRUPT_REQUEST_EP|0x80,
+  USB_DESC_ENDPOINT     (USBD1_CDC1_INTERRUPT_REQUEST_EP|0x80,
                          0x03,          /* bmAttributes (Interrupt).        */
                          0x0008,        /* wMaxPacketSize.                  */
                          0xFF),         /* bInterval.                       */
@@ -118,12 +128,87 @@ static const uint8_t vcom_configuration_descriptor_data[67] = {
                                            4.7).                            */
                          0x00),         /* iInterface.                      */
   /* Endpoint 3 Descriptor.*/
-  USB_DESC_ENDPOINT     (USBD1_DATA_AVAILABLE_EP,       /* bEndpointAddress.*/
+  USB_DESC_ENDPOINT     (USBD1_CDC1_DATA_AVAILABLE_EP,       /* bEndpointAddress.*/
                          0x02,          /* bmAttributes (Bulk).             */
                          0x0040,        /* wMaxPacketSize.                  */
                          0x00),         /* bInterval.                       */
   /* Endpoint 1 Descriptor.*/
-  USB_DESC_ENDPOINT     (USBD1_DATA_REQUEST_EP|0x80,    /* bEndpointAddress.*/
+  USB_DESC_ENDPOINT     (USBD1_CDC1_DATA_REQUEST_EP|0x80,    /* bEndpointAddress.*/
+                         0x02,          /* bmAttributes (Bulk).             */
+                         0x0040,        /* wMaxPacketSize.                  */
+                         0x00),         /* bInterval.                       */
+
+  /* CDC2 */
+  /* Interface Association Descriptor. */
+  USB_DESC_INTERFACE_ASSOCIATION(0x02,  /* bFirstInterface                  */
+                                 0x02,  /* bInterfaceCount                  */
+                                 0x02,  /* bFunctionClass                   */
+                                 0x00,  /* bFunctionSubClass                */
+                                 0x01,  /* bFunctionProcotol                */
+                                 0),    /* iInterface                       */
+  /* Interface Descriptor.*/
+  USB_DESC_INTERFACE    (0x02,          /* bInterfaceNumber.                */
+                         0x00,          /* bAlternateSetting.               */
+                         0x01,          /* bNumEndpoints.                   */
+                         0x02,          /* bInterfaceClass (Communications
+                                           Interface Class, CDC section
+                                           4.2).                            */
+                         0x02,          /* bInterfaceSubClass (Abstract
+                                         Control Model, CDC section 4.3).   */
+                         0x01,          /* bInterfaceProtocol (AT commands,
+                                           CDC section 4.4).                */
+                         0),            /* iInterface.                      */
+  /* Header Functional Descriptor (CDC section 5.2.3).*/
+  USB_DESC_BYTE         (5),            /* bLength.                         */
+  USB_DESC_BYTE         (0x24),         /* bDescriptorType (CS_INTERFACE).  */
+  USB_DESC_BYTE         (0x00),         /* bDescriptorSubtype (Header
+                                           Functional Descriptor.           */
+  USB_DESC_BCD          (0x0110),       /* bcdCDC.                          */
+  /* Call Management Functional Descriptor. */
+  USB_DESC_BYTE         (5),            /* bFunctionLength.                 */
+  USB_DESC_BYTE         (0x24),         /* bDescriptorType (CS_INTERFACE).  */
+  USB_DESC_BYTE         (0x01),         /* bDescriptorSubtype (Call Management
+                                           Functional Descriptor).          */
+  USB_DESC_BYTE         (0x00),         /* bmCapabilities (D0+D1).          */
+  USB_DESC_BYTE         (0x03),         /* bDataInterface.                  */
+  /* ACM Functional Descriptor.*/
+  USB_DESC_BYTE         (4),            /* bFunctionLength.                 */
+  USB_DESC_BYTE         (0x24),         /* bDescriptorType (CS_INTERFACE).  */
+  USB_DESC_BYTE         (0x02),         /* bDescriptorSubtype (Abstract
+                                           Control Management Descriptor).  */
+  USB_DESC_BYTE         (0x02),         /* bmCapabilities.                  */
+  /* Union Functional Descriptor.*/
+  USB_DESC_BYTE         (5),            /* bFunctionLength.                 */
+  USB_DESC_BYTE         (0x24),         /* bDescriptorType (CS_INTERFACE).  */
+  USB_DESC_BYTE         (0x06),         /* bDescriptorSubtype (Union
+                                           Functional Descriptor).          */
+  USB_DESC_BYTE         (0x02),         /* bMasterInterface (Communication
+                                           Class Interface).                */
+  USB_DESC_BYTE         (0x03),         /* bSlaveInterface0 (Data Class
+                                           Interface).                      */
+  /* Endpoint INTERRUPT_REQUEST Descriptor.*/
+  USB_DESC_ENDPOINT     (USBD1_CDC2_INTERRUPT_REQUEST_EP|0x80,
+                         0x03,          /* bmAttributes (Interrupt).        */
+                         0x0008,        /* wMaxPacketSize.                  */
+                         0xFF),         /* bInterval.                       */
+  /* Interface Descriptor.*/
+  USB_DESC_INTERFACE    (0x03,          /* bInterfaceNumber.                */
+                         0x00,          /* bAlternateSetting.               */
+                         0x02,          /* bNumEndpoints.                   */
+                         0x0A,          /* bInterfaceClass (Data Class
+                                           Interface, CDC section 4.5).     */
+                         0x00,          /* bInterfaceSubClass (CDC section
+                                           4.6).                            */
+                         0x00,          /* bInterfaceProtocol (CDC section
+                                           4.7).                            */
+                         0x00),         /* iInterface.                      */
+  /* Endpoint DATA_AVAILABLE Descriptor.*/
+  USB_DESC_ENDPOINT     (USBD1_CDC2_DATA_AVAILABLE_EP,       /* bEndpointAddress.*/
+                         0x02,          /* bmAttributes (Bulk).             */
+                         0x0040,        /* wMaxPacketSize.                  */
+                         0x00),         /* bInterval.                       */
+  /* Endpoint DATA_REQUEST Descriptor.*/
+  USB_DESC_ENDPOINT     (USBD1_CDC2_DATA_REQUEST_EP|0x80,    /* bEndpointAddress.*/
                          0x02,          /* bmAttributes (Bulk).             */
                          0x0040,        /* wMaxPacketSize.                  */
                          0x00)          /* bInterval.                       */
@@ -159,9 +244,9 @@ static const uint8_t vcom_string1[] = {
  * Device Description string.
  */
 static const uint8_t vcom_string2[] = {
-  USB_DESC_BYTE(8),                     /* bLength.                         */
+  USB_DESC_BYTE(16),                    /* bLength.                         */
   USB_DESC_BYTE(USB_DESCRIPTOR_STRING), /* bDescriptorType.                 */
-  'C', 0, 'A', 0, 'N', 0
+  'C', 0, 'A', 0, 'N', 0, '2', 0, 'U', 0, 'S', 0, 'B', 0
 };
 
 /*
@@ -230,7 +315,7 @@ static const USBEndpointConfig ep1config = {
   0x0040,
   &ep1instate,
   &ep1outstate,
-  1,
+  2,
   NULL
 };
 
@@ -255,11 +340,59 @@ static const USBEndpointConfig ep2config = {
   NULL
 };
 
+
+/**
+ * @brief   IN EP3 state.
+ */
+static USBInEndpointState ep3instate;
+
+/**
+ * @brief   OUT EP3 state.
+ */
+static USBOutEndpointState ep3outstate;
+
+/**
+ * @brief   EP3 initialization structure (both IN and OUT).
+ */
+static const USBEndpointConfig ep3config = {
+  USB_EP_MODE_TYPE_BULK,
+  NULL,
+  sduDataTransmitted,
+  sduDataReceived,
+  0x0040,
+  0x0040,
+  &ep3instate,
+  &ep3outstate,
+  2,
+  NULL
+};
+
+/**
+ * @brief   IN EP4 state.
+ */
+static USBInEndpointState ep4instate;
+
+/**
+ * @brief   EP4 initialization structure (IN only).
+ */
+static const USBEndpointConfig ep4config = {
+  USB_EP_MODE_TYPE_INTR,
+  NULL,
+  sduInterruptTransmitted,
+  NULL,
+  0x0010,
+  0x0000,
+  &ep4instate,
+  NULL,
+  1,
+  NULL
+};
+
 /*
  * Handles the USB driver global events.
  */
 static void usb_event(USBDriver *usbp, usbevent_t event) {
-  extern SerialUSBDriver SDU1;
+  extern SerialUSBDriver SDU1, SDU2;
 
   switch (event) {
   case USB_EVENT_RESET:
@@ -269,14 +402,17 @@ static void usb_event(USBDriver *usbp, usbevent_t event) {
   case USB_EVENT_CONFIGURED:
     chSysLockFromISR();
 
-    /* Enables the endpoints specified into the configuration.
-       Note, this callback is invoked from an ISR so I-Class functions
-       must be used.*/
-    usbInitEndpointI(usbp, USBD1_DATA_REQUEST_EP, &ep1config);
-    usbInitEndpointI(usbp, USBD1_INTERRUPT_REQUEST_EP, &ep2config);
-
+    /* Enables the endpoints specified into the configuration. */
+    usbInitEndpointI(usbp, USBD1_CDC1_DATA_REQUEST_EP, &ep1config);
+    usbInitEndpointI(usbp, USBD1_CDC1_INTERRUPT_REQUEST_EP, &ep2config);
     /* Resetting the state of the CDC subsystem.*/
     sduConfigureHookI(&SDU1);
+
+    /* Enables the endpoints specified into the configuration. */
+    usbInitEndpointI(usbp, USBD1_CDC2_DATA_REQUEST_EP, &ep3config);
+    usbInitEndpointI(usbp, USBD1_CDC2_INTERRUPT_REQUEST_EP, &ep4config);
+    /* Resetting the state of the CDC subsystem.*/
+    sduConfigureHookI(&SDU2);
 
     chSysUnlockFromISR();
     return;
@@ -303,9 +439,16 @@ const USBConfig usbcfg = {
 /*
  * Serial over USB driver configuration.
  */
-const SerialUSBConfig serusbcfg = {
+const SerialUSBConfig serusbcfg1 = {
   &USBD1,
-  USBD1_DATA_REQUEST_EP,
-  USBD1_DATA_AVAILABLE_EP,
-  USBD1_INTERRUPT_REQUEST_EP
+  USBD1_CDC1_DATA_REQUEST_EP,
+  USBD1_CDC1_DATA_AVAILABLE_EP,
+  USBD1_CDC1_INTERRUPT_REQUEST_EP
+};
+
+const SerialUSBConfig serusbcfg2 = {
+  &USBD1,
+  USBD1_CDC2_DATA_REQUEST_EP,
+  USBD1_CDC2_DATA_AVAILABLE_EP,
+  USBD1_CDC2_INTERRUPT_REQUEST_EP
 };

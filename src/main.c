@@ -33,6 +33,8 @@ static const CANConfig can1_config = {
          | (0 << 24) /* Resync jump width (2 bits) */
 };
 
+SerialUSBDriver SDU1, SDU2;
+
 int main(void)
 {
     halInit();
@@ -42,12 +44,14 @@ int main(void)
 
     // USB CDC
     sduObjectInit(&SDU1);
-    sduStart(&SDU1, &serusbcfg);
+    sduStart(&SDU1, &serusbcfg1);
+    sduObjectInit(&SDU2);
+    sduStart(&SDU2, &serusbcfg2);
 
-    usbDisconnectBus(serusbcfg.usbp);
+    usbDisconnectBus(serusbcfg1.usbp);
     chThdSleepMilliseconds(1500);
-    usbStart(serusbcfg.usbp, &usbcfg);
-    usbConnectBus(serusbcfg.usbp);
+    usbStart(serusbcfg1.usbp, &usbcfg);
+    usbConnectBus(serusbcfg1.usbp);
 
     while (SDU1.config->usbp->state != USB_ACTIVE) {
         chThdSleepMilliseconds(10);
