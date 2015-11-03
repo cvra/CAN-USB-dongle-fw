@@ -875,6 +875,10 @@
                                      PIN_AFIO_AF(GPIOF_PIN15, 0))
 
 
+#define STATUS_LED          (1<<0)
+#define CAN1_STATUS_LED     (1<<1)
+#define CAN1_PWR_LED        (1<<2)
+
 #if !defined(_FROM_ASM_)
 #ifdef __cplusplus
 extern "C" {
@@ -882,6 +886,10 @@ extern "C" {
     void usb_lld_connect_bus(void *);
     void usb_lld_disconnect_bus(void *);
     void boardInit(void);
+
+    void led_toggle(unsigned int led);
+    void led_set(unsigned int led);
+    void led_clear(unsigned int led);
 #ifdef __cplusplus
 }
 #endif

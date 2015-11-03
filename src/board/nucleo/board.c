@@ -139,3 +139,42 @@ void usb_lld_connect_bus(void *arg)
     palSetPadMode(GPIOA, GPIOA_OTG_FS_DP, PAL_MODE_ALTERNATE(10));
 }
 #endif
+
+void led_toggle(unsigned int led)
+{
+    if (led & STATUS_LED) {
+        palTogglePad(GPIOB, GPIOB_STATUS_LED);
+    }
+    if (led & CAN1_STATUS_LED) {
+        palTogglePad(GPIOB, GPIOB_CAN1_STATUS_LED);
+    }
+    if (led & CAN1_PWR_LED) {
+        palTogglePad(GPIOA, GPIOA_CAN1_PWR_LED);
+    }
+}
+
+void led_set(unsigned int led)
+{
+    if (led & STATUS_LED) {
+        palSetPad(GPIOB, GPIOB_STATUS_LED);
+    }
+    if (led & CAN1_STATUS_LED) {
+        palSetPad(GPIOB, GPIOB_CAN1_STATUS_LED);
+    }
+    if (led & CAN1_PWR_LED) {
+        palSetPad(GPIOA, GPIOA_CAN1_PWR_LED);
+    }
+}
+
+void led_clear(unsigned int led)
+{
+    if (led & STATUS_LED) {
+        palClearPad(GPIOB, GPIOB_STATUS_LED);
+    }
+    if (led & CAN1_STATUS_LED) {
+        palClearPad(GPIOB, GPIOB_CAN1_STATUS_LED);
+    }
+    if (led & CAN1_PWR_LED) {
+        palClearPad(GPIOA, GPIOA_CAN1_PWR_LED);
+    }
+}
