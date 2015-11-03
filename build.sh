@@ -1,3 +1,3 @@
 #!/bin/sh
-python packager/packager.py
+python3 packager/packager.py
 make all

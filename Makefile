@@ -57,8 +57,15 @@ USE_FPU = no
 # Project, sources and paths
 #
 
+TARGET = nucleo
+
+ifeq ($(TARGET), nucleo)
+include src/board/nucleo/board.mk
+LDSCRIPT = rules/STM32F302x8.ld
+endif
+
 # Define project name here
-PROJECT = can2usb
+PROJECT = firmware
 
 # Imported source files and paths
 CHIBIOS = ChibiOS
@@ -74,9 +81,6 @@ include $(CHIBIOS)/os/rt/ports/ARMCMx/compilers/GCC/mk/port_v7m.mk
 # Project sources
 include src/src.mk
 
-# Define linker script file here
-LDSCRIPT= STM32F302x8.ld
-
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
 CSRC = $(STARTUPSRC) \
@@ -86,6 +90,7 @@ CSRC = $(STARTUPSRC) \
        $(HALSRC) \
        $(PLATFORMSRC) \
        $(CHIBIOS)/os/hal/lib/streams/chprintf.c \
+	   $(BOARDSRC) \
 	   $(PROJCSRC)
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
@@ -97,7 +102,7 @@ ASMSRC = $(STARTUPASM) $(PORTASM) $(OSALASM) $(PROJASMSRC)
 
 INCDIR = $(STARTUPINC) $(KERNINC) $(PORTINC) $(OSALINC) \
          $(HALINC) $(PLATFORMINC) $(CHIBIOS)/os/various \
-         $(CHIBIOS)/os/hal/lib/streams $(PROJINC)
+         $(CHIBIOS)/os/hal/lib/streams $(PROJINC) $(BOARDINC)
 
 #
 # Project, sources and paths
@@ -168,7 +173,7 @@ ULIBS =
 
 GLOBAL_SRC_DEP = src/src.mk
 
-RULESPATH = .
+RULESPATH = rules
 include $(RULESPATH)/rules.mk
 
 CMakeLists.txt: package.yml

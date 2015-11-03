@@ -6,7 +6,6 @@ depends:
     - serial-can-bridge
 
 target.arm:
-    - src/board.c
     - src/main.c
     - src/usbcfg.c
     - src/can_driver.c
