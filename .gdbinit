@@ -1,2 +1,2 @@
-file ./build/can2usb.elf
+file ./build/firmware.elf
 target remote localhost:3333
