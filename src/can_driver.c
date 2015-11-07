@@ -118,13 +118,6 @@ void can_driver_start(void)
     chPoolObjectInit(&can_tx_pool, sizeof(struct can_frame), NULL);
     chPoolLoadArray(&can_tx_pool, tx_pool_buf, sizeof(tx_pool_buf)/sizeof(struct can_frame));
 
-    // CAN gpio init
-    iomode_t mode = PAL_STM32_MODE_ALTERNATE | PAL_STM32_OTYPE_PUSHPULL
-        | PAL_STM32_OSPEED_HIGHEST | PAL_STM32_PUDR_FLOATING
-        | PAL_STM32_ALTERNATE(9);
-    palSetPadMode(GPIOB, GPIOB_PIN8, mode); // RX
-    palSetPadMode(GPIOB, GPIOB_PIN9, mode); // TX
-
     CANDriver *cand = &CAND1;
     canStart(cand, &can_config);
     chThdCreateStatic(can_rx_thread_wa, sizeof(can_rx_thread_wa), NORMALPRIO+2, can_rx_thread, cand);

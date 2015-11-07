@@ -19,6 +19,7 @@
 
 #include <hal.h>
 
+extern cdc_linecoding_t serial_usb_linecoding;
 extern const USBConfig usbcfg;
 extern SerialUSBConfig serusbcfg1;
 extern SerialUSBConfig serusbcfg2;

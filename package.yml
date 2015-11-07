@@ -10,6 +10,7 @@ target.arm:
     - src/usbcfg.c
     - src/can_driver.c
     - src/can_bridge.c
+    - src/uart_bridge.c
 
 templates:
     Makefile.include.jinja: src/src.mk

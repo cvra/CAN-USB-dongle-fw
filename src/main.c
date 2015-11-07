@@ -3,6 +3,7 @@
 #include <chprintf.h>
 #include "usbcfg.h"
 #include "can_bridge.h"
+#include "uart_bridge.h"
 
 void panic(const char *reason)
 {
@@ -27,6 +28,8 @@ int main(void)
     chThdSleepMilliseconds(1500);
     usbStart(serusbcfg1.usbp, &usbcfg);
     usbConnectBus(serusbcfg1.usbp);
+
+    uart_bridge_start(&SDU2);
 
     while (SDU1.config->usbp->state != USB_ACTIVE) {
         chThdSleepMilliseconds(10);

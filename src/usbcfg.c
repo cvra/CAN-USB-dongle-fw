@@ -427,12 +427,46 @@ static void usb_event(USBDriver *usbp, usbevent_t event) {
 }
 
 /*
+ * Current Line Coding.
+ */
+cdc_linecoding_t serial_usb_linecoding = {
+  {
+    SERIAL_DEFAULT_BITRATE & 0xff,
+    (SERIAL_DEFAULT_BITRATE>>8) & 0xff,
+    (SERIAL_DEFAULT_BITRATE>>16) & 0xff,
+    (SERIAL_DEFAULT_BITRATE>>24) & 0xff},
+  LC_STOP_1, LC_PARITY_NONE, 8
+};
+
+// copied from serial_usb.c driver to have direct access to linecoding.
+bool my_sduRequestsHook(USBDriver *usbp) {
+  // led_toggle(CAN1_PWR_LED);
+  if ((usbp->setup[0] & USB_RTYPE_TYPE_MASK) == USB_RTYPE_TYPE_CLASS) {
+    switch (usbp->setup[1]) {
+    case CDC_GET_LINE_CODING:
+      usbSetupTransfer(usbp, (uint8_t *)&serial_usb_linecoding, sizeof(serial_usb_linecoding), NULL);
+      return true;
+    case CDC_SET_LINE_CODING:
+      usbSetupTransfer(usbp, (uint8_t *)&serial_usb_linecoding, sizeof(serial_usb_linecoding), NULL);
+      return true;
+    case CDC_SET_CONTROL_LINE_STATE:
+      /* Nothing to do, there are no control lines.*/
+      usbSetupTransfer(usbp, NULL, 0, NULL);
+      return true;
+    default:
+      return false;
+    }
+  }
+  return false;
+}
+
+/*
  * USB driver configuration.
  */
 const USBConfig usbcfg = {
   usb_event,
   get_descriptor,
-  sduRequestsHook,
+  my_sduRequestsHook,
   NULL
 };
 
