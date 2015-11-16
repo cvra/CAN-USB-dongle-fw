@@ -440,7 +440,6 @@ cdc_linecoding_t serial_usb_linecoding = {
 
 // copied from serial_usb.c driver to have direct access to linecoding.
 bool my_sduRequestsHook(USBDriver *usbp) {
-  // led_toggle(CAN1_PWR_LED);
   if ((usbp->setup[0] & USB_RTYPE_TYPE_MASK) == USB_RTYPE_TYPE_CLASS) {
     switch (usbp->setup[1]) {
     case CDC_GET_LINE_CODING:
