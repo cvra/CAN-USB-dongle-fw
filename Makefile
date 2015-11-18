@@ -57,10 +57,15 @@ USE_FPU = no
 # Project, sources and paths
 #
 
-TARGET = nucleo
+TARGET = CAN-USB-dongle-RevA
 
 ifeq ($(TARGET), nucleo)
 include src/board/nucleo/board.mk
+LDSCRIPT = rules/STM32F302x8.ld
+endif
+
+ifeq ($(TARGET), CAN-USB-dongle-RevA)
+include src/board/CAN-USB-dongle/RevA/board.mk
 LDSCRIPT = rules/STM32F302x8.ld
 endif
 
