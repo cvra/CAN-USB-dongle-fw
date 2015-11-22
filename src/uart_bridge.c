@@ -39,12 +39,7 @@ static THD_WORKING_AREA(uart_tx_wa, 300);
 static THD_FUNCTION(uart_tx, arg)
 {
     chRegSetThreadName("uart_tx");
-    // wait until connected
-    SerialUSBDriver *sdu = (SerialUSBDriver *)arg;
-    while (sdu->config->usbp->state != USB_ACTIVE) {
-        chThdSleepMilliseconds(10);
-    }
-
+    BaseChannel *io = (BaseChannel *)arg;
     static SerialConfig uart1_config = {
         SERIAL_DEFAULT_BITRATE,
         0,
@@ -54,7 +49,6 @@ static THD_FUNCTION(uart_tx, arg)
     uart1_config.speed = serial_usb_baudrate();
     uart1_config.speed *= 2;
     sdStart(&SD1, &uart1_config);
-    BaseChannel *io = (BaseChannel *)sdu;
     // start uart receive thread
     chBSemObjectInit(&uart1_config_lock, true);
     chThdCreateStatic(uart_rx_wa, sizeof(uart_rx_wa), NORMALPRIO, uart_rx, io);
@@ -85,7 +79,7 @@ static THD_FUNCTION(uart_tx, arg)
     }
 }
 
-void uart_bridge_start(SerialUSBDriver *sdu)
+void uart_bridge_start(BaseChannel *ch)
 {
-    chThdCreateStatic(uart_tx_wa, sizeof(uart_tx_wa), NORMALPRIO, uart_tx, sdu);
+    chThdCreateStatic(uart_tx_wa, sizeof(uart_tx_wa), NORMALPRIO, uart_tx, ch);
 }

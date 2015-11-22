@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-void uart_bridge_start(SerialUSBDriver *sdu);
+void uart_bridge_start(BaseChannel *ch);
 
 #ifdef __cplusplus
 }
