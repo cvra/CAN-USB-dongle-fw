@@ -113,9 +113,10 @@ static THD_FUNCTION(can_rx_thread, arg) {
         CANRxFrame rxf;
         msg_t m = canReceive(&CAND1, CAN_ANY_MAILBOX, &rxf, MS2ST(10));
         if (m != MSG_OK) {
+            led_clear(CAN1_STATUS_LED);
             continue;
         }
-        led_set(CAN1_STATUS_LED);
+        led_toggle(CAN1_STATUS_LED);
         struct can_rx_frame_s *fp = (struct can_rx_frame_s *)chPoolAlloc(&can_rx_pool);
         if (fp == NULL) {
             chSysHalt("CAN driver out of memory");
@@ -138,7 +139,6 @@ static THD_FUNCTION(can_rx_thread, arg) {
         memcpy(&fp->frame.data[0], &rxf.data8[0], rxf.DLC);
 
         m = chMBPost(&can_rx_queue, (msg_t)fp, TIME_IMMEDIATE);
-        led_clear(CAN1_STATUS_LED);
         if (m != MSG_OK) {
             chPoolFree(&can_rx_pool, fp);
             can_rx_queue_flush = true;
