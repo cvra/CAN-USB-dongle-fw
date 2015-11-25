@@ -1,58 +1,62 @@
 #include <ch.h>
 #include <hal.h>
-#include "can_driver.h"
-#include <serial-can-bridge/serial_can_bridge.h>
+#include <cmp_mem_access/cmp_mem_access.h>
+#include <datagram-messages/msg_dispatcher.h>
+#include <datagram-messages/service_call.h>
 #include <serial-datagram/serial_datagram.h>
+#include "protocol.h"
 
-void serial_write(void *arg, const void *p, size_t len)
+void send_cb(void *arg, const void *p, size_t len)
 {
     if (len > 0) {
-        BaseAsynchronousChannel *chp = (BaseAsynchronousChannel *)arg;
-        chnWrite(chp, p, len);
+        BaseChannel *ch = (BaseChannel *)arg;
+        chnWrite(ch, p, len);
     }
 }
 
-THD_WORKING_AREA(can_bridge_rx_thread_wa, 1000);
-void can_bridge_rx_thread(void *arg)
-{
-    chRegSetThreadName("can_bridge_rx");
+struct io_dev_s {
+    BaseChannel *channel;
+    binary_semaphore_t lock;
+};
 
-    struct can_frame *framep;
-    static uint8_t outbuf[32];
-    size_t outlen;
-    while (1) {
-        msg_t m = chMBFetch(&can_rx_queue, (msg_t *)&framep, TIME_INFINITE);
-        if (m == MSG_OK) {
-            // encode frame
-            outlen = sizeof(outbuf);
-            bool ok = can_bridge_frame_write(framep, outbuf, &outlen);
-            chPoolFree(&can_rx_pool, framep);
-            if (ok) {
-                serial_datagram_send(outbuf, outlen, serial_write, arg);
-            }
-        } else if (m == MSG_RESET) {
-            // send data dropped notification
-        }
-    }
+void io_dev_send(const void *dtgrm, size_t len, void *arg)
+{
+    struct io_dev_s *dev = (struct io_dev_s *)arg;
+    chBSemWait(&dev->lock);
+    serial_datagram_send(dtgrm, len, send_cb, dev->channel);
+    chBSemSignal(&dev->lock);
 }
 
-THD_WORKING_AREA(can_bridge_tx_thread_wa, 1000);
-void can_bridge_tx_thread(void *arg)
+struct service_call_handler_s service_call_handler;
+struct msg_dispatcher_entry_s messages[] = {
+    {.id="req", .cb=service_call_msg_cb, .arg=&service_call_handler},
+    {.id=NULL, .cb=NULL, .arg=NULL},
+};
+
+THD_WORKING_AREA(receiver_therad_wa, 1000);
+void receiver_therad(void *arg)
 {
+    struct io_dev_s *dev = (struct io_dev_s *)arg;
+
+    static char response_buffer[64];
+    service_call_handler.service_table = service_calls;
+    service_call_handler.response_buffer = response_buffer;
+    service_call_handler.response_buffer_sz = sizeof(response_buffer);
+    service_call_handler.send_cb = io_dev_send;
+    service_call_handler.send_cb_arg = dev;
+
     serial_datagram_rcv_handler_t rcv;
-    static uint8_t buf[32];
     static char datagram_buf[64];
-    BaseAsynchronousChannel *in = (BaseAsynchronousChannel *)arg;
-
     serial_datagram_rcv_handler_init(
         &rcv,
         datagram_buf,
         sizeof(datagram_buf),
-        can_bridge_datagram_rcv_cb,
-        NULL);
+        (serial_datagram_cb_t)msg_dispatcher,
+        messages);
 
     while (1) {
-        int len = chnReadTimeout(in, buf, sizeof(buf), MS2ST(10));
+        static uint8_t buf[32];
+        int len = chnReadTimeout(dev->channel, buf, sizeof(buf), MS2ST(1));
         if (len == 0) {
             continue;
         }
@@ -60,28 +64,44 @@ void can_bridge_tx_thread(void *arg)
     }
 }
 
-void can_interface_send(struct can_frame *frame)
+THD_WORKING_AREA(sender_thread_wa, 1000);
+void sender_thread(void *arg)
 {
-    struct can_frame *tx = (struct can_frame *)chPoolAlloc(&can_tx_pool);
-    if (tx == NULL) {
-        return;
+    struct io_dev_s *dev = (struct io_dev_s *)arg;
+    char message_buffer[32];
+    cmp_ctx_t cmp;
+    cmp_mem_access_t mem;
+    cmp_mem_access_init(&cmp, &mem, message_buffer, sizeof(message_buffer));
+    while (1) {
+        struct can_rx_frame_s *fp;
+        bool drop;
+        fp = can_frame_receive(&drop);
+        if (drop) {
+            can_drop_msg_encode(&cmp);
+        } else {
+            if (fp == NULL) {
+                continue;
+            } else if (fp->error) {
+                can_error_msg_encode(&cmp, fp->timestamp);
+            } else {
+                can_rx_msg_encode(&cmp, &fp->frame, fp->timestamp);
+            }
+            can_rx_frame_delete(fp);
+        }
+        size_t len = cmp_mem_access_get_pos(&mem);
+        io_dev_send(message_buffer, len, dev);
+        cmp_mem_access_set_pos(&mem, 0);
     }
-    tx->id = frame->id;
-    tx->dlc = frame->dlc;
-    tx->data.u32[0] = frame->data.u32[0];
-    tx->data.u32[1] = frame->data.u32[1];
-    msg_t m = chMBPost(&can_tx_queue, (msg_t)tx, TIME_IMMEDIATE);
-    if (m != MSG_OK) {
-        // couldn't post, free memory
-        chPoolFree(&can_tx_pool, tx);
-        chMBReset(&can_tx_queue);
-    }
-    return;
 }
 
-void can_bridge_start(BaseSequentialStream *io)
+void can_bridge_start(BaseChannel *ch)
 {
+    static struct io_dev_s io_dev;
+    io_dev.channel = ch;
+    chBSemObjectInit(&io_dev.lock, false);
     can_driver_start();
-    chThdCreateStatic(can_bridge_rx_thread_wa, sizeof(can_bridge_rx_thread_wa), NORMALPRIO, can_bridge_rx_thread, io);
-    chThdCreateStatic(can_bridge_tx_thread_wa, sizeof(can_bridge_tx_thread_wa), NORMALPRIO, can_bridge_tx_thread, io);
+    chThdCreateStatic(receiver_therad_wa, sizeof(receiver_therad_wa),
+        NORMALPRIO, receiver_therad, &io_dev);
+    chThdCreateStatic(sender_thread_wa, sizeof(sender_thread_wa),
+        NORMALPRIO, sender_thread, &io_dev);
 }
