@@ -3,7 +3,10 @@ dependency-dir: ./src/
 depends:
     - serial-datagram:
         fork: Stapelzeiger
-    - serial-can-bridge
+    - cmp_mem_access:
+        fork: Stapelzeiger
+    - cmp:
+        fork: cvra
 
 target.arm:
     - src/main.c
@@ -11,6 +14,16 @@ target.arm:
     - src/can_driver.c
     - src/can_bridge.c
     - src/uart_bridge.c
+
+source:
+    - src/protocol.c
+    - src/cmp/cmp.c
+    - src/datagram-messages/msg_dispatcher.c
+    - src/datagram-messages/service_call.c
+
+include_directories:
+    - ./
+    - ./src/
 
 templates:
     Makefile.include.jinja: src/src.mk
