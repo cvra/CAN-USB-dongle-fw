@@ -4,11 +4,31 @@
 #include "usbcfg.h"
 #include "can_bridge.h"
 #include "uart_bridge.h"
+#include "protocol.h"
 
 void panic(const char *reason)
 {
     (void) reason;
+    led_set(STATUS_LED | CAN1_STATUS_LED | CAN1_PWR_LED);
     while (1);
+}
+
+bool bus_power(bool enable)
+{
+    // todo: check bus voltage first
+    if (enable) {
+        led_set(CAN1_PWR_LED);
+        palSetPad(GPIOB, GPIOB_V_BUS_ENABLE);
+    } else {
+        led_clear(CAN1_PWR_LED);
+        palClearPad(GPIOB, GPIOB_V_BUS_ENABLE);
+    }
+    return true;
+}
+
+float bus_voltage_get(void)
+{
+    return 0;
 }
 
 SerialUSBDriver SDU1, SDU2;
@@ -29,16 +49,15 @@ int main(void)
     usbStart(serusbcfg1.usbp, &usbcfg);
     usbConnectBus(serusbcfg1.usbp);
 
-    uart_bridge_start(&SDU2);
-
     while (SDU1.config->usbp->state != USB_ACTIVE) {
         chThdSleepMilliseconds(10);
     }
 
-    can_bridge_start((BaseSequentialStream *)&SDU1);
+    uart_bridge_start((BaseChannel *)&SDU2);
+    can_bridge_start((BaseChannel *)&SDU1);
 
     while (1) {
-        chThdSleepMilliseconds(100);
         led_toggle(STATUS_LED);
+        chThdSleepMilliseconds(100);
     }
 }
