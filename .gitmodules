@@ -19,3 +19,6 @@
 [submodule "src/crc"]
 	path = src/crc
 	url = https://github.com/cvra/crc
+[submodule "src/datagram-messages"]
+	path = src/datagram-messages
+	url = https://github.com/nuft/datagram-messages.git
