@@ -61,6 +61,7 @@ static THD_FUNCTION(uart_tx, arg)
         } else {
             // check if uart baudrate has changed
             uint32_t speed = serial_usb_baudrate();
+            speed *= 2; // workaround: uart1 clock is off by a factor of 2 for some reason
             if (speed != uart1_config.speed) {
                 // wait until receiver thread is halted
                 uart1_needs_reconfig = true;
@@ -69,7 +70,6 @@ static THD_FUNCTION(uart_tx, arg)
                 }
                 // reconfigure uart
                 sdStop(&SD1);
-                speed *= 2; // workaround: uart1 clock is off by a factor of 2 for some reason
                 uart1_config.speed = speed;
                 sdStart(&SD1, &uart1_config);
                 uart1_needs_reconfig = false;
