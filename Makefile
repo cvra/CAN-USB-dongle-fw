@@ -195,3 +195,7 @@ tests: CMakeLists.txt
 .PHONY: flash
 flash: build/$(PROJECT).elf
 	openocd -f openocd.cfg -c "program build/$(PROJECT).elf verify reset" -c "shutdown"
+
+.PHONY: dfu
+dfu: build/$(PROJECT).bin
+	dfu-util -a 0 --dfuse-address 0x08000000 -D build/$(PROJECT).bin
