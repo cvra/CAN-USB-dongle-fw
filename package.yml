@@ -5,6 +5,8 @@ depends:
         fork: Stapelzeiger
     - cmp_mem_access:
         fork: Stapelzeiger
+    - timestamp:
+        fork: Stapelzeiger
     - cmp:
         fork: cvra
 

@@ -5,6 +5,7 @@
 #include "can_bridge.h"
 #include "uart_bridge.h"
 #include "protocol.h"
+#include <timestamp/timestamp_stm32.h>
 
 void panic(const char *reason)
 {
@@ -37,6 +38,10 @@ int main(void)
 {
     halInit();
     chSysInit();
+
+    chSysLock();
+    timestamp_stm32_init();
+    chSysUnlock();
 
     // USB CDC
     sduObjectInit(&SDU1);

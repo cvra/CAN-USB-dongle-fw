@@ -1,7 +1,7 @@
 #include <ch.h>
 #include <hal.h>
 #include <string.h>
-// #include <timestamp/timestamp.h>
+#include <timestamp/timestamp.h>
 #include "can_driver.h"
 
 #define CAN_RX_BUFFER_SIZE   10
@@ -121,7 +121,7 @@ static THD_FUNCTION(can_rx_thread, arg) {
         if (fp == NULL) {
             chSysHalt("CAN driver out of memory");
         }
-        fp->timestamp = 0; // todo
+        fp->timestamp = timestamp_get();
         fp->error = false;
         if (rxf.IDE) {
             fp->frame.id = rxf.EID;

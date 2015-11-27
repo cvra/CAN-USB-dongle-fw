@@ -5,6 +5,7 @@
 #include <datagram-messages/service_call.h>
 #include <datagram-messages/msg_dispatcher.h>
 #include <cmp_mem_access/cmp_mem_access.h>
+#include <timestamp/timestamp.h>
 #include <can_driver.h>
 #include <bus_power.h>
 #include <device_info.h>
@@ -23,14 +24,14 @@ void can_drop_msg_encode(cmp_ctx_t *cmp)
     cmp_write_nil(cmp);
 }
 
-void can_error_msg_encode(cmp_ctx_t *cmp, timestamp_t timestamp)
+void can_error_msg_encode(cmp_ctx_t *cmp, uint64_t timestamp)
 {
     cmp_write_array(cmp, 2);
     cmp_write_str(cmp, "err", 3);
     cmp_write_uint(cmp, timestamp);
 }
 
-void can_rx_msg_encode(cmp_ctx_t *cmp, struct can_frame_s *frame, timestamp_t timestamp)
+void can_rx_msg_encode(cmp_ctx_t *cmp, struct can_frame_s *frame, uint64_t timestamp)
 {
     uint8_t buf[13];
     uint32_t id = frame->id;
@@ -147,7 +148,7 @@ bool filter_cb(cmp_ctx_t *in, cmp_ctx_t *out, void *arg)
         }
         can_filter_stop_edit();
     }
-    uint64_t timestamp = 0; // todo
+    uint64_t timestamp = timestamp_get();
     if (cmp_write_array(out, 2)
         && cmp_write_bool(out, ok)
         && cmp_write_uint(out, timestamp)) {
