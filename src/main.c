@@ -11,6 +11,8 @@ void panic(const char *reason)
 {
     (void) reason;
     led_set(STATUS_LED | CAN1_STATUS_LED | CAN1_PWR_LED);
+    palSetPad(GPIOA, GPIOA_CAN_SILENT); // CAN silent
+    palClearPad(GPIOB, GPIOB_V_BUS_ENABLE); // bus power disable
     while (1);
 }
 
