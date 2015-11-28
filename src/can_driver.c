@@ -8,17 +8,6 @@
 
 semaphore_t can_config_wait;
 
-// Baudrate prescaler (10 bits), Time segment 1 (4 bits), Time segment 2 (3 bits)
-static const uint32_t can_bitrate_table[][2] = {
-//  {bitrate, BRP      | TS1     | TS2
-    {  10000, (199<<0) | (9<<16) | (6<<20)},
-    { 100000, ( 19<<0) | (9<<16) | (6<<20)},
-    { 250000, (  7<<0) | (9<<16) | (6<<20)},
-    { 500000, (  3<<0) | (9<<16) | (6<<20)},
-    {1000000, (  1<<0) | (9<<16) | (6<<20)} // APB = 36MHz / 2 / (1tq + 10tq + 7tq) => 1Mbit
-};
-#define CAN_BITRATE_TABLE_SIZE  (sizeof(can_bitrate_table)/(2*sizeof(uint32_t)))
-
 #define CAN_BTR_BRP_MASK 0x000003FF
 #define CAN_BTR_TS1_MASK 0x000F0000
 #define CAN_BTR_TS2_MASK 0x00700000
@@ -26,6 +15,14 @@ static const uint32_t can_bitrate_table[][2] = {
 #if !defined(CAN_DEFAULT_BITRATE)
 #define CAN_DEFAULT_BITRATE     1000000
 #endif
+
+#define CAN_BASE_CLOCK STM32_PCLK1 // APB1 clock = 36MHz
+#if CAN_BASE_CLOCK != 36000000
+#error "CAN base clock"
+#endif
+#define BTR_TS1 10
+#define BTR_TS2 7
+#define CAN_BASE_BIT_RATE CAN_BASE_CLOCK / (1 + BTR_TS1 + BTR_TS2)
 
 static CANConfig can_config = {
     .mcr = (1 << 6)  // Automatic bus-off management enabled
@@ -37,14 +34,15 @@ static CANConfig can_config = {
 // searches CAN bit rate register value
 static bool can_btr_from_bitrate(uint32_t bitrate, uint32_t *btr_value)
 {
-    unsigned int i;
-    for (i = 0; i < CAN_BITRATE_TABLE_SIZE; i++) {
-        if (can_bitrate_table[i][0] == bitrate) {
-            *btr_value = can_bitrate_table[i][1];
-            return true;
-        }
+    if (bitrate > 1000000 ||
+        CAN_BASE_BIT_RATE % bitrate != 0 ||
+        CAN_BASE_BIT_RATE / bitrate > 1024) {
+        // bad range or no exact bitrate possible
+        return false;
     }
-    return false;
+    uint32_t prescaler = CAN_BASE_BIT_RATE / bitrate;
+    *btr_value = ((prescaler - 1)<<0) | ((BTR_TS1 - 1)<<16) | ((BTR_TS2 - 1)<<20);
+    return true;
 }
 
 static void can_wait_if_stop_requested(void)
