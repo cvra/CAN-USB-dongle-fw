@@ -446,7 +446,13 @@ bool my_sduRequestsHook(USBDriver *usbp) {
       usbSetupTransfer(usbp, (uint8_t *)&serial_usb_linecoding, sizeof(serial_usb_linecoding), NULL);
       return true;
     case CDC_SET_LINE_CODING:
-      usbSetupTransfer(usbp, (uint8_t *)&serial_usb_linecoding, sizeof(serial_usb_linecoding), NULL);
+      if (usbp->setup[4] == 0x02) { // wIndex field is 0x02 for the second interface, 0x00 for the first.
+        // the linecoding is only used by the second interface
+        usbSetupTransfer(usbp, (uint8_t *)&serial_usb_linecoding, sizeof(serial_usb_linecoding), NULL);
+      } else {
+        // ignore request for other interfaces
+        usbSetupTransfer(usbp, NULL, 0, NULL);
+      }
       return true;
     case CDC_SET_CONTROL_LINE_STATE:
       /* Nothing to do, there are no control lines.*/
