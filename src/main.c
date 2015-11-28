@@ -5,6 +5,8 @@
 #include "can_bridge.h"
 #include "uart_bridge.h"
 #include "protocol.h"
+#include "bus_power.h"
+#include <timestamp/timestamp.h>
 #include <timestamp/timestamp_stm32.h>
 
 void panic(const char *reason)
@@ -16,22 +18,21 @@ void panic(const char *reason)
     while (1);
 }
 
-bool bus_power(bool enable)
+void user_button_poll(void)
 {
-    // todo: check bus voltage first
-    if (enable) {
-        led_set(CAN1_PWR_LED);
-        palSetPad(GPIOB, GPIOB_V_BUS_ENABLE);
+    static timestamp_t last_press = 0;
+    static bool active = false;
+    if (palReadPad(GPIOA, GPIOA_USER_BUTTON) != 0) {
+        if (active && 1.0f < timestamp_duration_s(last_press, timestamp_get())) {
+            bus_power_toggle();
+            active = false;
+        } else if (!active) {
+            active = true;
+            last_press = timestamp_get();
+        }
     } else {
-        led_clear(CAN1_PWR_LED);
-        palClearPad(GPIOB, GPIOB_V_BUS_ENABLE);
+        active = false;
     }
-    return true;
-}
-
-float bus_voltage_get(void)
-{
-    return 0;
 }
 
 SerialUSBDriver SDU1, SDU2;
@@ -44,6 +45,8 @@ int main(void)
     chSysLock();
     timestamp_stm32_init();
     chSysUnlock();
+
+    bus_power_init();
 
     // USB CDC
     sduObjectInit(&SDU1);
@@ -64,7 +67,8 @@ int main(void)
     can_bridge_start((BaseChannel *)&SDU1);
 
     while (1) {
-        led_toggle(STATUS_LED);
+        user_button_poll();
+        bus_voltage_adc_conversion();
         chThdSleepMilliseconds(100);
     }
 }

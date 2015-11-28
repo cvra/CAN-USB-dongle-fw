@@ -16,6 +16,7 @@ target.arm:
     - src/can_driver.c
     - src/can_bridge.c
     - src/uart_bridge.c
+    - src/bus_power.c
 
 source:
     - src/protocol.c

@@ -5,8 +5,11 @@
 extern "C" {
 #endif
 
-bool bus_power(bool enable);
 float bus_voltage_get(void);
+void bus_voltage_adc_conversion(void);
+bool bus_power(bool enable);
+void bus_power_toggle(void);
+void bus_power_init(void);
 
 #ifdef __cplusplus
 }
