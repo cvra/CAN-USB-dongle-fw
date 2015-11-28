@@ -198,4 +198,4 @@ flash: build/$(PROJECT).elf
 
 .PHONY: dfu
 dfu: build/$(PROJECT).bin
-	dfu-util -a 0 --dfuse-address 0x08000000 -D build/$(PROJECT).bin
+	dfu-util -a 0 -d 0483:df11 --dfuse-address 0x08000000 -D build/$(PROJECT).bin
