@@ -18,10 +18,10 @@ semaphore_t can_config_wait;
 
 #define CAN_BASE_CLOCK STM32_PCLK1 // APB1 clock = 36MHz
 #if CAN_BASE_CLOCK != 36000000
-#error "CAN base clock"
+#error "CAN peripheral clock"
 #endif
-#define BTR_TS1 10
-#define BTR_TS2 7
+#define BTR_TS1 6
+#define BTR_TS2 5
 #define CAN_BASE_BIT_RATE CAN_BASE_CLOCK / (1 + BTR_TS1 + BTR_TS2)
 
 static CANConfig can_config = {
