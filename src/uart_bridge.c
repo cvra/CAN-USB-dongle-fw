@@ -7,15 +7,6 @@
 volatile bool uart1_needs_reconfig = false;
 binary_semaphore_t uart1_config_lock;
 
-static uint32_t serial_usb_baudrate(void)
-{
-    uint32_t rate = serial_usb_linecoding.dwDTERate[0] |
-                    serial_usb_linecoding.dwDTERate[1]<<8 |
-                    serial_usb_linecoding.dwDTERate[2]<<16 |
-                    serial_usb_linecoding.dwDTERate[3]<<24;
-    return rate;
-}
-
 static THD_WORKING_AREA(uart_rx_wa, 300);
 static THD_FUNCTION(uart_rx, arg)
 {
@@ -46,7 +37,7 @@ static THD_FUNCTION(uart_tx, arg)
         USART_CR2_STOP1_BITS | USART_CR2_LINEN,
         0
     };
-    uart1_config.speed = serial_usb_baudrate();
+    uart1_config.speed = serial_usb_get_baudrate();
     uart1_config.speed *= 2;
     sdStart(&SD1, &uart1_config);
     // start uart receive thread
@@ -60,7 +51,7 @@ static THD_FUNCTION(uart_tx, arg)
             sdWrite(&SD1, &buf[0], len);
         } else {
             // check if uart baudrate has changed
-            uint32_t speed = serial_usb_baudrate();
+            uint32_t speed = serial_usb_get_baudrate();
             speed *= 2; // workaround: uart1 clock is off by a factor of 2 for some reason
             if (speed != uart1_config.speed) {
                 // wait until receiver thread is halted

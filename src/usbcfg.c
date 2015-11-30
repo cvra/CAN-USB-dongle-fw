@@ -426,33 +426,46 @@ static void usb_event(USBDriver *usbp, usbevent_t event) {
   return;
 }
 
-/*
- * Current Line Coding.
- */
-cdc_linecoding_t serial_usb_linecoding = {
-  {
-    SERIAL_DEFAULT_BITRATE & 0xff,
-    (SERIAL_DEFAULT_BITRATE>>8) & 0xff,
-    (SERIAL_DEFAULT_BITRATE>>16) & 0xff,
-    (SERIAL_DEFAULT_BITRATE>>24) & 0xff},
+static cdc_linecoding_t cdc_linecoding = {
+  {0x00, 0x96, 0x00, 0x00}, // 38400
   LC_STOP_1, LC_PARITY_NONE, 8
 };
+
+static uint32_t serial_baudrate = SERIAL_DEFAULT_BITRATE;
+
+static void linecoding_callback(USBDriver *usbp)
+{
+    (void)usbp;
+    chSysLockFromISR();
+    serial_baudrate = cdc_linecoding.dwDTERate[0] |
+                      cdc_linecoding.dwDTERate[1]<<8 |
+                      cdc_linecoding.dwDTERate[2]<<16 |
+                      cdc_linecoding.dwDTERate[3]<<24;
+    chSysUnlockFromISR();
+}
+
+uint32_t serial_usb_get_baudrate(void) {
+    uint32_t br;
+    chSysLock();
+    br = serial_baudrate;
+    chSysUnlock();
+    return br;
+}
 
 // copied from serial_usb.c driver to have direct access to linecoding.
 bool my_sduRequestsHook(USBDriver *usbp) {
   if ((usbp->setup[0] & USB_RTYPE_TYPE_MASK) == USB_RTYPE_TYPE_CLASS) {
+    usbcallback_t callback = NULL;
     switch (usbp->setup[1]) {
     case CDC_GET_LINE_CODING:
-      usbSetupTransfer(usbp, (uint8_t *)&serial_usb_linecoding, sizeof(serial_usb_linecoding), NULL);
+      usbSetupTransfer(usbp, (uint8_t *)&cdc_linecoding, sizeof(cdc_linecoding), NULL);
       return true;
     case CDC_SET_LINE_CODING:
-      if (usbp->setup[4] == 0x02) { // wIndex field is 0x02 for the second interface, 0x00 for the first.
-        // the linecoding is only used by the second interface
-        usbSetupTransfer(usbp, (uint8_t *)&serial_usb_linecoding, sizeof(serial_usb_linecoding), NULL);
-      } else {
-        // ignore request for other interfaces
-        usbSetupTransfer(usbp, NULL, 0, NULL);
+      if (usbp->setup[4] == 0x02) { // wIndex field indicatedes the addressed interface
+        // if second interface then we actually care about the linecoding
+        callback = linecoding_callback;
       }
+      usbSetupTransfer(usbp, (uint8_t *)&cdc_linecoding, sizeof(cdc_linecoding), callback);
       return true;
     case CDC_SET_CONTROL_LINE_STATE:
       /* Nothing to do, there are no control lines.*/
