@@ -86,6 +86,9 @@ include $(CHIBIOS)/os/rt/ports/ARMCMx/compilers/GCC/mk/port_v7m.mk
 # Project sources
 include src/src.mk
 
+# don't use crc32 module, too slow
+PROJCSRC := $(patsubst %crc/crc32.c,,$(PROJCSRC))
+
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
 CSRC = $(STARTUPSRC) \

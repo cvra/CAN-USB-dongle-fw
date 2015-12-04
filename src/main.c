@@ -35,6 +35,41 @@ void user_button_poll(void)
     }
 }
 
+void crc32_stm32f3_init(void)
+{
+    chSysLock();
+    rccEnableAHB(RCC_AHBENR_CRCEN, 0);
+    chSysUnlock();
+    CRC->CR = 0;
+    CRC->CR = CRC_CR_REV_OUT | CRC_CR_REV_IN_0 | CRC_CR_REV_IN_1; // bit reverse
+    CRC->POL = 0x04C11DB7;
+}
+
+uint32_t crc32(uint32_t init, const void *data, size_t len)
+{
+    CRC->INIT = ~init;
+    // word aling pointer
+    uint8_t align = ((uintptr_t)data) & 3;
+    const uint8_t *b = data;
+    while (align > 0) {
+        *(uint8_t *)(&CRC->DR) = *b++;
+        align--;
+    }
+    len -= align;
+    // calculate by word
+    const uint32_t *w = (uint32_t *)b;
+    while (len >= 4) {
+        CRC->DR = *w++;
+        len -= 4;
+    }
+    // calculate rest
+    b = (uint8_t *)w;
+    while (len--) {
+        *(uint8_t *)(&CRC->DR) = *b++;
+    }
+    return ~CRC->DR;
+}
+
 SerialUSBDriver SDU1, SDU2;
 
 int main(void)
@@ -47,6 +82,7 @@ int main(void)
     chSysUnlock();
 
     bus_power_init();
+    crc32_stm32f3_init();
 
     // USB CDC
     sduObjectInit(&SDU1);
