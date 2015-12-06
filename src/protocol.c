@@ -11,12 +11,6 @@
 #include <device_info.h>
 #include "protocol.h"
 
-#define CAN_ID_MASK             ((1<<29) - 1)
-#define CAN_ID_EXTENDED_MAX     ((1<<29) - 1)
-#define CAN_ID_STANDARD_MAX     ((1<<11) - 1)
-#define CAN_ID_EXTENDED         (1<<29)
-#define CAN_ID_REMOTE           (1<<30)
-
 void can_drop_msg_encode(cmp_ctx_t *cmp)
 {
     cmp_write_array(cmp, 2);
@@ -121,33 +115,7 @@ bool bit_rate_cb(cmp_ctx_t *in, cmp_ctx_t *out, void *arg)
 bool filter_cb(cmp_ctx_t *in, cmp_ctx_t *out, void *arg)
 {
     (void)arg;
-    uint32_t nb_filter;
-    bool ok = false;
-    if (cmp_read_array(in, &nb_filter)) {
-        can_filter_start_edit();
-        if (nb_filter == 0) {
-            can_filter_reset();
-        }
-        uint32_t i;
-        for (i = 0; i < nb_filter; i++) {
-            uint32_t len;
-            if (cmp_read_array(in, &len) && len == 2) {
-                uint32_t id, mask;
-                if (!cmp_read_uint(in, &id) || !cmp_read_uint(in, &mask)) {
-                    break;
-                }
-                if (!can_filter_set(i, id, mask)) {
-                    break;
-                }
-            } else {
-                break;
-            }
-        }
-        if (i == nb_filter) {
-            ok = true; // all filters successful
-        }
-        can_filter_stop_edit();
-    }
+    bool ok = can_filter_set(in);
     uint64_t timestamp = timestamp_get();
     if (cmp_write_array(out, 2)
         && cmp_write_bool(out, ok)

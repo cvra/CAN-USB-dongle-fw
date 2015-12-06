@@ -2,6 +2,7 @@
 #include <hal.h>
 #include <string.h>
 #include <timestamp/timestamp.h>
+#include "protocol.h"
 #include "can_driver.h"
 
 #define CAN_RX_BUFFER_SIZE   10
@@ -182,30 +183,48 @@ bool can_set_bitrate(uint32_t bitrate)
     return ok;
 }
 
-void can_filter_start_edit(void)
+static uint32_t id_to_filter(uint32_t id)
 {
+    uint32_t filter;
+    if (id & CAN_ID_EXTENDED) {
+        filter = (id & CAN_ID_MASK)<<3 | (1<<2);
+    } else {
+        filter = (id & CAN_ID_MASK)<<21;
+    }
+    if (id & CAN_ID_REMOTE) {
+        filter |= (1<<1);
+    }
+    return filter;
+}
+
+bool can_filter_set(cmp_ctx_t *in)
+{
+    static CANFilter filter[STM32_CAN_MAX_FILTERS];
+    uint32_t length;
+    if (!cmp_read_array(in, &length) || length > STM32_CAN_MAX_FILTERS) {
+        return false;
+    }
+    uint32_t i;
+    for (i = 0; i < length; i++) {
+        uint32_t len, id, mask;
+        if (!cmp_read_array(in, &len) && len != 2) {
+            return false;
+        }
+        if (!cmp_read_uint(in, &id) || !cmp_read_uint(in, &mask)) {
+            return false;
+        }
+        filter[i].filter = i;
+        filter[i].mode = 0; // mask mode
+        filter[i].scale = 1; // 32bit
+        filter[i].assignment = 0; // FIFO0, required by driver
+        filter[i].register1 = id_to_filter(id);
+        filter[i].register2 = id_to_filter(mask);
+    }
     can_stop();
-}
-
-void can_filter_stop_edit(void)
-{
+    canSTM32SetFilters(1, length, filter);
     can_start();
-}
-
-void can_filter_reset(void)
-{
-    // todo
-}
-
-bool can_filter_set(unsigned int filter_nb, uint32_t id, uint32_t mask)
-{
-    (void)filter_nb;
-    (void)id;
-    (void)mask;
-    // todo
     return true;
 }
-
 
 void can_silent_mode(bool enable)
 {
