@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <cmp/cmp.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -28,10 +29,7 @@ struct can_rx_frame_s *can_frame_receive(bool *dropped);
 void can_rx_frame_delete(struct can_rx_frame_s *f);
 void can_driver_start(void);
 bool can_set_bitrate(uint32_t bitrate);
-void can_filter_start_edit(void);
-void can_filter_stop_edit(void);
-void can_filter_reset(void);
-bool can_filter_set(unsigned int filter_nb, uint32_t id, uint32_t mask);
+bool can_filter_set(cmp_ctx_t *in);
 void can_silent_mode(bool enable);
 void can_loopback_mode(bool enable);
 

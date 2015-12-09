@@ -5,6 +5,12 @@
 #include <can_driver.h>
 #include <datagram-messages/service_call.h>
 
+#define CAN_ID_MASK             ((1<<29) - 1)
+#define CAN_ID_EXTENDED_MAX     ((1<<29) - 1)
+#define CAN_ID_STANDARD_MAX     ((1<<11) - 1)
+#define CAN_ID_EXTENDED         (1<<29)
+#define CAN_ID_REMOTE           (1<<30)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
