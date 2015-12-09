@@ -205,7 +205,7 @@ On every bit where the mask is 1, the ID bits have to match the filter ID.
 This is equivalent to the following bit operation and comparison:
 
 ```
-((id XOR filter_id) AND filter_mask) == 0
+can_id AND filter_mask == filter_id AND filter_mask
 ```
 
 The filter is encoded as follows:
