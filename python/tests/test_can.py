@@ -26,6 +26,14 @@ class CANIDTestCase(unittest.TestCase):
         self.assertEqual(id_enc & can.Frame.ID.CAN_ID_EXTENDED,0)
         self.assertEqual(id_enc & can.Frame.ID.CAN_ID_REMOTE, 0)
         self.assertEqual(id_enc & can.Frame.ID.CAN_ID_MASK, 0x7FF)
+    def test_mask_and_with_id(self):
+        mask = can.Frame.ID.mask(0x1FFFFFFF, extended=True, remote=True)
+        canid = int(can.Frame.ID(0xAB, extended=False, remote=False))
+        self.assertEqual(canid & mask, canid)
+    def test_mask_equal_to_id(self):
+        mask = can.Frame.ID.mask(0x123, extended=True, remote=True)
+        canid = int(can.Frame.ID(0x123, extended=True, remote=True))
+        self.assertEqual(mask, canid)
 
 class CANFrameTestCase(unittest.TestCase):
     def test_can_encode_decode(self):

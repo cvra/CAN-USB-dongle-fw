@@ -46,6 +46,17 @@ class Frame:
         def __bytes__(self):
             return struct.pack('<L', int(self))
 
+        @classmethod
+        def mask(cls, value, extended=False, remote=False):
+            '''
+            Create a bitmask for ID filtering.
+            '''
+            if extended:
+                value |= cls.CAN_ID_EXTENDED
+            if remote:
+                value |= cls.CAN_ID_REMOTE
+            return value
+
         def encode(self):
             return bytes(self)
 
