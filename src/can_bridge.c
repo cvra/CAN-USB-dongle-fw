@@ -36,6 +36,7 @@ struct msg_dispatcher_entry_s messages[] = {
 THD_WORKING_AREA(receiver_therad_wa, 1000);
 void receiver_therad(void *arg)
 {
+    chRegSetThreadName("USB receiver");
     struct io_dev_s *dev = (struct io_dev_s *)arg;
 
     static char response_buffer[64];
@@ -67,6 +68,7 @@ void receiver_therad(void *arg)
 THD_WORKING_AREA(sender_thread_wa, 1000);
 void sender_thread(void *arg)
 {
+    chRegSetThreadName("USB sender");
     struct io_dev_s *dev = (struct io_dev_s *)arg;
     char message_buffer[32];
     cmp_ctx_t cmp;
