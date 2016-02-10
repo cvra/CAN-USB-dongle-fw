@@ -57,8 +57,10 @@ USE_FPU = no
 # Project, sources and paths
 #
 
+# set to one of the target boards below
 TARGET = CAN-USB-dongle-RevA
 
+# target boards
 ifeq ($(TARGET), nucleo)
 include src/board/nucleo/board.mk
 LDSCRIPT = rules/STM32F302x8.ld
@@ -99,6 +101,7 @@ CSRC = $(STARTUPSRC) \
        $(PLATFORMSRC) \
        $(CHIBIOS)/os/hal/lib/streams/chprintf.c \
 	   $(BOARDSRC) \
+	   src/version.c \
 	   $(PROJCSRC)
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
@@ -162,6 +165,10 @@ CPPWARN = -Wall -Wextra -Wundef
 
 # List all user C define here, like -D_DEBUG=1
 UDEFS =
+# optional device name, build with make DEVICE_NAME="My CAN interface"
+ifneq ($(DEVICE_NAME),)
+  UDEFS += -DDEVICE_NAME_STR=\"$(DEVICE_NAME)\"
+endif
 
 # Define ASM defines here
 UADEFS =
@@ -183,6 +190,9 @@ GLOBAL_SRC_DEP = src/src.mk
 
 RULESPATH = rules
 include $(RULESPATH)/rules.mk
+
+PRE_MAKE_ALL_RULE_HOOK:
+	./version.sh
 
 CMakeLists.txt: package.yml
 	python packager/packager.py

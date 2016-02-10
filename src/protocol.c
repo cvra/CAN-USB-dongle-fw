@@ -8,8 +8,12 @@
 #include <timestamp/timestamp.h>
 #include <can_driver.h>
 #include <bus_power.h>
-#include <device_info.h>
+#include <version.h>
 #include "protocol.h"
+
+#ifndef DEVICE_NAME_STR
+#define DEVICE_NAME_STR "cvra_can0"
+#endif
 
 void can_drop_msg_encode(cmp_ctx_t *cmp)
 {
@@ -168,14 +172,14 @@ bool hw_version_cb(cmp_ctx_t *in, cmp_ctx_t *out, void *arg)
 {
     (void)in;
     (void)arg;
-    return cmp_write_str(out, HARDWARE_VERSION_STR, strlen(HARDWARE_VERSION_STR));
+    return cmp_write_str(out, hardware_version_str, strlen(hardware_version_str));
 }
 
 bool sw_version_cb(cmp_ctx_t *in, cmp_ctx_t *out, void *arg)
 {
     (void)in;
     (void)arg;
-    return cmp_write_str(out, SOFTWARE_VERSION_STR, strlen(SOFTWARE_VERSION_STR));
+    return cmp_write_str(out, softwar_version_str, strlen(softwar_version_str));
 }
 
 bool name_cb(cmp_ctx_t *in, cmp_ctx_t *out, void *arg)
