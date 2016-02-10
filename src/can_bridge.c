@@ -10,7 +10,7 @@ void send_cb(void *arg, const void *p, size_t len)
 {
     if (len > 0) {
         BaseChannel *ch = (BaseChannel *)arg;
-        chnWrite(ch, p, len);
+        chnWriteTimeout(ch, p, len, MS2ST(100));
     }
 }
 
