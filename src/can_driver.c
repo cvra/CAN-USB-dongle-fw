@@ -197,6 +197,23 @@ static uint32_t id_to_filter(uint32_t id)
     return filter;
 }
 
+static uint32_t mask_to_filter(uint32_t mask, bool id_is_extended)
+{
+    uint32_t filter;
+    if (id_is_extended) {
+        filter = (mask & CAN_ID_MASK)<<3;
+    } else {
+        filter = (mask & CAN_ID_MASK)<<21;
+    }
+    if (mask & CAN_ID_EXTENDED) {
+        filter |= (1<<2);
+    }
+    if (mask & CAN_ID_REMOTE) {
+        filter |= (1<<1);
+    }
+    return filter;
+}
+
 bool can_filter_set(cmp_ctx_t *in)
 {
     static CANFilter filter[STM32_CAN_MAX_FILTERS];
@@ -218,7 +235,7 @@ bool can_filter_set(cmp_ctx_t *in)
         filter[i].scale = 1; // 32bit
         filter[i].assignment = 0; // FIFO0, required by driver
         filter[i].register1 = id_to_filter(id);
-        filter[i].register2 = id_to_filter(mask);
+        filter[i].register2 = mask_to_filter(mask, id & CAN_ID_EXTENDED);
     }
     can_stop();
     canSTM32SetFilters(1, length, filter);
