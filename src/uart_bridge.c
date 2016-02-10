@@ -17,6 +17,7 @@ static THD_FUNCTION(uart_rx, arg)
     while (true) {
         len = sdReadTimeout(&SD1, &buf[0], sizeof(buf), MS2ST(1));
         if (len > 0) {
+            led_set(STATUS_LED);
             chnWrite(io, &buf[0], len);
         }
         if (uart1_needs_reconfig) {
@@ -48,6 +49,7 @@ static THD_FUNCTION(uart_tx, arg)
         static uint8_t buf[32];
         len = chnReadTimeout(io, &buf[0], sizeof(buf), MS2ST(1));
         if (len > 0) {
+            led_set(STATUS_LED);
             sdWrite(&SD1, &buf[0], len);
         } else {
             // check if uart baudrate has changed

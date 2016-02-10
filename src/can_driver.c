@@ -96,7 +96,6 @@ bool can_frame_send(uint32_t id, bool extended, bool remote, void *data, size_t 
         memcpy(&txf.data8[0], data, length);
     }
     msg_t m = canTransmit(&CAND1, CAN_ANY_MAILBOX, &txf, MS2ST(100));
-    led_clear(CAN1_STATUS_LED);
     if (m != MSG_OK) {
         return false;
     }
@@ -112,10 +111,9 @@ static THD_FUNCTION(can_rx_thread, arg) {
         CANRxFrame rxf;
         msg_t m = canReceive(&CAND1, CAN_ANY_MAILBOX, &rxf, MS2ST(10));
         if (m != MSG_OK) {
-            led_clear(CAN1_STATUS_LED);
             continue;
         }
-        led_toggle(CAN1_STATUS_LED);
+        led_set(CAN1_STATUS_LED);
         struct can_rx_frame_s *fp = (struct can_rx_frame_s *)chPoolAlloc(&can_rx_pool);
         if (fp == NULL) {
             chSysHalt("CAN driver out of memory");

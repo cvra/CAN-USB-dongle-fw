@@ -106,5 +106,7 @@ int main(void)
         user_button_poll();
         bus_voltage_adc_conversion();
         chThdSleepMilliseconds(100);
+        led_clear(STATUS_LED);
+        led_clear(CAN1_STATUS_LED);
     }
 }
