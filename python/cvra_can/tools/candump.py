@@ -62,7 +62,7 @@ def set_filter(conn, arg):
     flist = [[int(i, 16), int(m, 16), e == 'ext'] for i, m, e in arg]
     for i, m, e in flist:
         filter_arg.append([int(cvra_can.Frame.ID(i, extended=e)),
-                           cvra_can.Frame.ID.mask(m, extended=e)])
+                           cvra_can.Frame.ID.mask(m, extended=True)])
 
     if filter_arg == []:
          [int(cvra_can.Frame.ID(0, extended=0)),
