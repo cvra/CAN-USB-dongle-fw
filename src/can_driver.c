@@ -5,7 +5,7 @@
 #include "protocol.h"
 #include "can_driver.h"
 
-#define CAN_RX_BUFFER_SIZE   10
+#define CAN_RX_BUFFER_SIZE   100
 
 semaphore_t can_config_wait;
 
