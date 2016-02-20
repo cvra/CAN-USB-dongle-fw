@@ -4,6 +4,7 @@ import datagrammessages as dmsg
 import msgpack
 import argparse
 import cvra_can
+import threading
 from sys import exit
 from time import sleep
 
@@ -40,23 +41,6 @@ def drop_handler(msg):
     print('[DATA LOSS]')
     pass
 
-class IOSocket:
-    def __init__(self, fdesc):
-        self.fdesc = fdesc
-    def recv(self, num):
-        while True:
-            try:
-                dtgrm = serial_datagram.read(self.fdesc)
-                if dtgrm is not None:
-                    break
-            except:
-                pass
-        return dtgrm
-    def send(self, data):
-        count = self.fdesc.write(serial_datagram.encode(data))
-        self.fdesc.flush
-        return count
-
 def set_filter(conn, arg):
     filter_arg = []
     flist = [[int(i, 16), int(m, 16), e == 'ext'] for i, m, e in arg]
@@ -74,15 +58,11 @@ def set_filter(conn, arg):
 
 def main():
     args = parse_commandline_args()
-    fdesc = serial.Serial(port=args.serial_device, timeout=0.2)
-    fdesc.flushInput()
+    conn = dmsg.SerialConnection(args.serial_device)
 
-    io = IOSocket(fdesc)
-    conn = dmsg.ConnectionHandler(io)
     conn.set_msg_handler('rx', rx_handler)
     conn.set_msg_handler('err', err_handler)
     conn.set_msg_handler('drop', drop_handler)
-    conn.start_daemon()
 
     conn.service_call('silent', not args.active)
     if not conn.service_call('bit rate', args.bitrate):
