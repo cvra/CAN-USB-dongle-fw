@@ -68,8 +68,9 @@ def main():
     if not conn.service_call('bit rate', args.bitrate):
         print('not supported bit rate: ', args.bitrate)
         return
-    conn.service_call('loop back', False)
-    conn.service_call('bus power', args.power)
+    conn.service_call('loop back', True)
+    if args.power:
+        conn.service_call('bus power', args.power)
 
     set_filter(conn, args.filter)
 
