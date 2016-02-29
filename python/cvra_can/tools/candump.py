@@ -77,7 +77,7 @@ def main():
     print('> connect to "{}"'.format(conn.service_call('name', None)))
     print('> hardware version "{}"'.format(conn.service_call('hw version', None)))
     print('> software version {}'.format(conn.service_call('sw version', None)))
-    print('> bus voltage {}'.format(conn.service_call('bus voltage', None)))
+    print('> bus voltage {:.3f}'.format(conn.service_call('bus voltage', None)))
 
     while True:
         sleep(1)
