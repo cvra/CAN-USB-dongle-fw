@@ -7,7 +7,8 @@
 
 #define CAN_RX_BUFFER_SIZE   100
 
-semaphore_t can_config_wait;
+// size+3 for the 3 threads handling CAN frames from can_rx_pool
+#define CAN_RX_POOL_SIZE CAN_RX_BUFFER_SIZE + 3
 
 #define CAN_BTR_BRP_MASK 0x000003FF
 #define CAN_BTR_TS1_MASK 0x000F0000
@@ -24,6 +25,16 @@ semaphore_t can_config_wait;
 #define BTR_TS1 6
 #define BTR_TS2 5
 #define CAN_BASE_BIT_RATE CAN_BASE_CLOCK / (1 + BTR_TS1 + BTR_TS2)
+
+static void can_rx_queue_post(struct can_rx_frame_s *fp);
+static bool can_btr_from_bitrate(uint32_t bitrate, uint32_t *btr_value);
+static void can_wait_if_stop_requested(void);
+static void can_stop(void);
+static void can_start(void);
+static void can_rx_queue_post(struct can_rx_frame_s *fp);
+static void can_rx_queue_flush(void);
+static uint32_t id_to_filter(uint32_t id);
+static uint32_t mask_to_filter(uint32_t mask, bool id_is_extended);
 
 static CANConfig can_config = {
     .mcr = (1 << 6)  // Automatic bus-off management enabled
@@ -45,6 +56,9 @@ static bool can_btr_from_bitrate(uint32_t bitrate, uint32_t *btr_value)
     *btr_value = ((prescaler - 1)<<0) | ((BTR_TS1 - 1)<<16) | ((BTR_TS2 - 1)<<20);
     return true;
 }
+
+// synchronize between recevier and sender thread
+semaphore_t can_config_wait;
 
 static void can_wait_if_stop_requested(void)
 {
@@ -73,9 +87,8 @@ static void can_start(void)
 memory_pool_t can_rx_pool;
 mailbox_t can_rx_queue;
 msg_t rx_mbox_buf[CAN_RX_BUFFER_SIZE];
-binary_semaphore_t can_rx_queue_is_flushed;
-bool can_rx_queue_flush;
-struct can_rx_frame_s rx_pool_buf[CAN_RX_BUFFER_SIZE+1];
+bool can_rx_overflow = false;
+struct can_rx_frame_s rx_pool_buf[CAN_RX_POOL_SIZE];
 
 bool can_frame_send(uint32_t id, bool extended, bool remote, void *data, size_t length)
 {
@@ -134,12 +147,28 @@ static THD_FUNCTION(can_rx_thread, arg) {
         }
         fp->frame.length = rxf.DLC;
         memcpy(&fp->frame.data[0], &rxf.data8[0], rxf.DLC);
+        can_rx_queue_post(fp);
+    }
+}
 
-        m = chMBPost(&can_rx_queue, (msg_t)fp, TIME_IMMEDIATE);
-        if (m != MSG_OK) {
+static void can_rx_queue_post(struct can_rx_frame_s *fp)
+{
+    msg_t m = chMBPost(&can_rx_queue, (msg_t)fp, TIME_IMMEDIATE);
+    if (m != MSG_OK) {
+        can_rx_overflow = true;
+        chPoolFree(&can_rx_pool, fp);
+    }
+}
+
+static void can_rx_queue_flush(void)
+{
+    struct can_rx_frame_s *fp;
+    while (1) {
+        msg_t m = chMBFetch(&can_rx_queue, (msg_t *)&fp, TIME_IMMEDIATE);
+        if (m == MSG_OK) {
             chPoolFree(&can_rx_pool, fp);
-            can_rx_queue_flush = true;
-            chBSemWait(&can_rx_queue_is_flushed);
+        } else {
+            break;
         }
     }
 }
@@ -152,18 +181,15 @@ void can_rx_frame_delete(struct can_rx_frame_s *f)
 struct can_rx_frame_s *can_frame_receive(bool *drop)
 {
     struct can_rx_frame_s *fp;
-    *drop = false;
-    systime_t timeout = MS2ST(100);
-    if (can_rx_queue_flush) {
-        timeout = TIME_IMMEDIATE;
+    *drop = can_rx_overflow;
+    if (can_rx_overflow) {
+        can_rx_queue_flush();
+        can_rx_overflow = false;
+        return NULL;
     }
-    msg_t m = chMBFetch(&can_rx_queue, (msg_t *)&fp, timeout);
+    msg_t m = chMBFetch(&can_rx_queue, (msg_t *)&fp, MS2ST(100));
     if (m == MSG_OK) {
         return fp;
-    } else if (can_rx_queue_flush) {
-        can_rx_queue_flush = false;
-        chBSemSignal(&can_rx_queue_is_flushed);
-        *drop = true;
     }
     return NULL;
 }
@@ -267,8 +293,7 @@ void can_loopback_mode(bool enable)
 
 void can_driver_start(void)
 {
-    can_rx_queue_flush = false;
-    chBSemObjectInit(&can_rx_queue_is_flushed, true);
+    can_rx_overflow = false;
     chMBObjectInit(&can_rx_queue, rx_mbox_buf, sizeof(rx_mbox_buf)/sizeof(rx_mbox_buf[0]));
     chPoolObjectInit(&can_rx_pool, sizeof(rx_pool_buf[0]), NULL);
     chPoolLoadArray(&can_rx_pool, rx_pool_buf, sizeof(rx_pool_buf)/sizeof(rx_pool_buf[0]));
