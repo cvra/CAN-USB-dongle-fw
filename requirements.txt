@@ -1,0 +1,7 @@
+msgpack-python
+zmq
+pyyaml
+pyserial
+./src/serial-datagram/python
+./src/datagram-messages/python
+./python
