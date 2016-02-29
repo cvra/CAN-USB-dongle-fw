@@ -36,10 +36,11 @@ static void can_rx_queue_flush(void);
 static uint32_t id_to_filter(uint32_t id);
 static uint32_t mask_to_filter(uint32_t mask, bool id_is_extended);
 
+static bool can_loopback_mode_active = true;
 static CANConfig can_config = {
     .mcr = (1 << 6)  // Automatic bus-off management enabled
          | (1 << 2), // Message are prioritized by order of arrival
-    .btr = CAN_BTR_LBKM | CAN_BTR_SILM // Loopback & Silent mode
+    .btr = CAN_BTR_SILM // Silent mode, (NO Loopback!)
          | CAN_BTR_SJW_0 // 2tq resynchronization jump width
 };
 
@@ -109,8 +110,22 @@ bool can_frame_send(uint32_t id, bool extended, bool remote, void *data, size_t 
         memcpy(&txf.data8[0], data, length);
     }
     msg_t m = canTransmit(&CAND1, CAN_ANY_MAILBOX, &txf, MS2ST(100));
+    timestamp_t now = timestamp_get();
     if (m != MSG_OK) {
         return false;
+    }
+    if (can_loopback_mode_active) {
+        struct can_rx_frame_s *fp = (struct can_rx_frame_s *)chPoolAlloc(&can_rx_pool);
+        if (fp == NULL) {
+            chSysHalt("CAN driver out of memory");
+        }
+        fp->timestamp = now;
+        fp->error = false;
+        fp->frame.id = id;
+        fp->frame.extended = extended ? 1 : 0;
+        fp->frame.remote = remote ? 1 : 0;
+        fp->frame.length = length;
+        can_rx_queue_post(fp);
     }
     return true;
 }
@@ -282,13 +297,7 @@ void can_silent_mode(bool enable)
 
 void can_loopback_mode(bool enable)
 {
-    can_stop();
-    if (enable) {
-        can_config.btr |= CAN_BTR_LBKM;
-    } else {
-        can_config.btr &= ~CAN_BTR_LBKM;
-    }
-    can_start();
+    can_loopback_mode_active = enable;
 }
 
 void can_driver_start(void)
