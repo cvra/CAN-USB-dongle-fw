@@ -21,7 +21,7 @@
 	url = https://github.com/cvra/crc
 [submodule "src/datagram-messages"]
 	path = src/datagram-messages
-	url = https://github.com/nuft/datagram-messages.git
+	url = https://github.com/Stapelzeiger/datagram-messages.git
 [submodule "src/timestamp"]
 	path = src/timestamp
 	url = https://github.com/Stapelzeiger/timestamp.git
