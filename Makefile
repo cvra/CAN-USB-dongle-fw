@@ -88,9 +88,6 @@ include $(CHIBIOS)/os/rt/ports/ARMCMx/compilers/GCC/mk/port_v7m.mk
 # Project sources
 include src/src.mk
 
-# don't use crc32 module, too slow
-PROJCSRC := $(patsubst %crc/crc32.c,,$(PROJCSRC))
-
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
 CSRC = $(STARTUPSRC) \
@@ -193,17 +190,6 @@ include $(RULESPATH)/rules.mk
 
 PRE_MAKE_ALL_RULE_HOOK:
 	./version.sh
-
-CMakeLists.txt: package.yml
-	python packager/packager.py
-
-.PHONY: tests
-tests: CMakeLists.txt
-	@mkdir -p build/tests
-	@cd build/tests; \
-	cmake ../..; \
-	make ; \
-	./tests;
 
 .PHONY: flash
 flash: build/$(PROJECT).elf

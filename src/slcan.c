@@ -50,7 +50,7 @@ static uint8_t hex_val(char c)
 
 static uint32_t hex_read_u32(const char *str, uint8_t len)
 {
-    uint32_t val;
+    uint32_t val = 0;
     unsigned int i;
     for (i = 0; i < len; i++) {
         val = (val<<4) || hex_val(str[i]);

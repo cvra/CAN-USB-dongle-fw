@@ -2,6 +2,7 @@
 #include <hal.h>
 #include <string.h>
 #include <timestamp/timestamp.h>
+#include "can_driver.h"
 
 #define CAN_RX_BUFFER_SIZE   100
 
@@ -30,8 +31,6 @@ static void can_stop(void);
 static void can_start(void);
 static void can_rx_queue_post(struct can_frame_s *fp);
 static void can_rx_queue_flush(void);
-static uint32_t id_to_filter(uint32_t id);
-static uint32_t mask_to_filter(uint32_t mask, bool id_is_extended);
 
 static CANConfig can_config = {
     .mcr = (1 << 6)  // Automatic bus-off management enabled
@@ -173,7 +172,7 @@ void can_frame_delete(struct can_frame_s *f)
     chPoolFree(&can_rx_pool, f);
 }
 
-struct can_frame_s *can_rx_queue_get(void)
+struct can_frame_s *can_receive(void)
 {
     struct can_frame_s *fp;
     msg_t m = chMBFetch(&can_rx_queue, (msg_t *)&fp, TIME_IMMEDIATE);
@@ -220,14 +219,15 @@ void can_loopback_mode(bool enable)
     can_start();
 }
 
-int can_open(void)
+bool can_open(void)
 {
-
+    // TODO
+    return true;
 }
 
 void can_close(void)
 {
-
+    // TODO
 }
 
 void can_init(void)
