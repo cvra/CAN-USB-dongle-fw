@@ -158,6 +158,60 @@ TEST(SlcanTestGroup, CanDecodeStandardRemoteFrame)
     STRCMP_EQUAL("\r", line);
 }
 
+TEST(SlcanTestGroup, OpenCommand)
+{
+    mock().expectOneCall("can_open").withParameter("mode", CAN_MODE_NORMAL);
+    strcpy(line, "O\r");
+    slcan_decode_line(line);
+    STRCMP_EQUAL("\r", line);
+}
+
+TEST(SlcanTestGroup, OpenLoopbackCommand)
+{
+    mock().expectOneCall("can_open").withParameter("mode", CAN_MODE_LOOPBACK);
+    strcpy(line, "l\r");
+    slcan_decode_line(line);
+    STRCMP_EQUAL("\r", line);
+}
+
+TEST(SlcanTestGroup, OpenSilentCommand)
+{
+    mock().expectOneCall("can_open").withParameter("mode", CAN_MODE_SILENT);
+    strcpy(line, "L\r");
+    slcan_decode_line(line);
+    STRCMP_EQUAL("\r", line);
+}
+
+TEST(SlcanTestGroup, SetBitrateCommand)
+{
+    mock().expectOneCall("can_set_bitrate").withParameter("bitrate", 1000000);
+    strcpy(line, "S8\r");
+    slcan_decode_line(line);
+    STRCMP_EQUAL("\r", line);
+}
+
+TEST(SlcanTestGroup, CloseCommand)
+{
+    mock().expectOneCall("can_close");
+    strcpy(line, "C\r");
+    slcan_decode_line(line);
+    STRCMP_EQUAL("\r", line);
+}
+
+TEST(SlcanTestGroup, HardwareVersionCommand)
+{
+    strcpy(line, "V\r");
+    slcan_decode_line(line);
+    STRCMP_EQUAL("hardware version str\r", line);
+}
+
+TEST(SlcanTestGroup, SoftwareVersionCommand)
+{
+    strcpy(line, "v\r");
+    slcan_decode_line(line);
+    STRCMP_EQUAL("software version str\r", line);
+}
+
 int main(int ac, char** av)
 {
     return CommandLineTestRunner::RunAllTests(ac, av);
@@ -166,8 +220,39 @@ int main(int ac, char** av)
 // mocks
 extern "C" {
 
-const char * softwar_version_str = "software version str";
+const char * software_version_str = "software version str";
 const char * hardware_version_str = "hardware version str";
+
+bool can_send(uint32_t id, bool extended, bool remote, uint8_t *data, size_t length)
+{
+    size_t data_length = remote ? 0 : length;
+    mock().actualCall("can_send")
+          .withParameter("id", id)
+          .withParameter("extended", extended)
+          .withParameter("remote", remote)
+          .withMemoryBufferParameter("data", data, data_length)
+          .withParameter("length", length);
+    return true;
+}
+
+bool can_set_bitrate(uint32_t bitrate)
+{
+    mock().actualCall("can_set_bitrate").withParameter("bitrate", bitrate);
+    return true;
+}
+
+bool can_open(int mode)
+{
+    mock().actualCall("can_open").withParameter("mode", mode);
+    return true;
+}
+
+void can_close(void)
+{
+    mock().actualCall("can_close");
+}
+
+/* dummy functions */
 
 int slcan_serial_get(void *arg)
 {
@@ -187,43 +272,6 @@ struct can_frame_s *can_receive(void)
 void can_frame_delete(struct can_frame_s *f)
 {
     (void) f;
-}
-
-bool can_send(uint32_t id, bool extended, bool remote, uint8_t *data, size_t length)
-{
-    size_t data_length = remote ? 0 : length;
-    mock().actualCall("can_send")
-          .withParameter("id", id)
-          .withParameter("extended", extended)
-          .withParameter("remote", remote)
-          .withMemoryBufferParameter("data", data, data_length)
-          .withParameter("length", length);
-    return true;
-}
-
-bool can_set_bitrate(uint32_t bitrate)
-{
-    return true;
-}
-
-void can_silent_mode(bool enable)
-{
-    (void) enable;
-}
-
-void can_loopback_mode(bool enable)
-{
-    (void) enable;
-}
-
-bool can_open(void)
-{
-    return true;
-}
-
-void can_close(void)
-{
-    return;
 }
 
 }

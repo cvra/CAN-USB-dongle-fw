@@ -13,6 +13,7 @@
 #define CAN_BTR_TS1_MASK 0x000F0000
 #define CAN_BTR_TS2_MASK 0x00700000
 #define CAN_BTR_TIMING_MASK (CAN_BTR_BRP_MASK | CAN_BTR_TS1_MASK | CAN_BTR_TS2_MASK)
+
 #if !defined(CAN_DEFAULT_BITRATE)
 #define CAN_DEFAULT_BITRATE     1000000
 #endif
@@ -26,11 +27,11 @@
 #define CAN_BASE_BIT_RATE CAN_BASE_CLOCK / (1 + BTR_TS1 + BTR_TS2)
 
 static bool can_btr_from_bitrate(uint32_t bitrate, uint32_t *btr_value);
-static void can_wait_if_stop_requested(void);
-static void can_stop(void);
-static void can_start(void);
+static void wait_on_request(void);
 static void can_rx_queue_post(struct can_frame_s *fp);
 static void can_rx_queue_flush(void);
+
+bool can_is_running = false;
 
 static CANConfig can_config = {
     .mcr = (1 << 6)  // Automatic bus-off management enabled
@@ -54,9 +55,9 @@ static bool can_btr_from_bitrate(uint32_t bitrate, uint32_t *btr_value)
 }
 
 // synchronize between recevier and sender thread
-semaphore_t can_config_wait;
+SEMAPHORE_DECL(can_config_wait, 1);
 
-static void can_wait_if_stop_requested(void)
+static void wait_on_request(void)
 {
     cnt_t count;
     chSysLock();
@@ -66,18 +67,6 @@ static void can_wait_if_stop_requested(void)
         chSemSignal(&can_config_wait);
         chSemWait(&can_config_wait);
     }
-}
-
-static void can_stop(void)
-{
-    chSemWait(&can_config_wait);
-    canStop(&CAND1);
-}
-
-static void can_start(void)
-{
-    canStart(&CAND1, &can_config);
-    chSemSignal(&can_config_wait);
 }
 
 memory_pool_t can_rx_pool;
@@ -111,11 +100,12 @@ bool can_send(uint32_t id, bool extended, bool remote, uint8_t *data, size_t len
 }
 
 static THD_WORKING_AREA(can_rx_thread_wa, 256);
-static THD_FUNCTION(can_rx_thread, arg) {
+static THD_FUNCTION(can_rx_thread, arg)
+{
     (void)arg;
     chRegSetThreadName("CAN rx");
     while (1) {
-        can_wait_if_stop_requested();
+        wait_on_request();
         CANRxFrame rxf;
         msg_t m = canReceive(&CAND1, CAN_ANY_MAILBOX, &rxf, MS2ST(10));
         if (m != MSG_OK) {
@@ -184,50 +174,55 @@ struct can_frame_s *can_receive(void)
 
 bool can_set_bitrate(uint32_t bitrate)
 {
-    bool ok;
-    can_stop();
+    if (can_is_running) {
+        return false;
+    }
+
     uint32_t btr;
-    ok = can_btr_from_bitrate(bitrate, &btr);
-    if (ok) {
+    if (can_btr_from_bitrate(bitrate, &btr)) {
         can_config.btr = (can_config.btr & ~CAN_BTR_TIMING_MASK) | btr;
-    }
-    can_start();
-    return ok;
-}
-
-void can_silent_mode(bool enable)
-{
-    can_stop();
-    if (enable) {
-        palSetPad(GPIOA, GPIOA_CAN_SILENT);
-        can_config.btr |= CAN_BTR_SILM;
+        return true;
     } else {
-        palClearPad(GPIOA, GPIOA_CAN_SILENT);
-        can_config.btr &= ~CAN_BTR_SILM;
+        return false;
     }
-    can_start();
 }
 
-void can_loopback_mode(bool enable)
+bool can_open(int mode)
 {
-    can_stop();
-    if (enable) {
+    if (can_is_running) {
+        return false;
+    }
+
+    // CAN_MODE_NORMAL
+    palClearPad(GPIOA, GPIOA_CAN_SILENT);
+    can_config.btr &= ~CAN_BTR_LBKM;
+    can_config.btr &= ~CAN_BTR_SILM;
+
+    switch (mode) {
+    case CAN_MODE_LOOPBACK:
         can_config.btr |= CAN_BTR_LBKM;
-    } else {
-        can_config.btr &= ~CAN_BTR_LBKM;
-    }
-    can_start();
-}
+        break;
+    case CAN_MODE_SILENT:
+        can_config.btr |= CAN_BTR_SILM;
+        palSetPad(GPIOA, GPIOA_CAN_SILENT);
+        break;
+    };
 
-bool can_open(void)
-{
-    // TODO
+    can_is_running = true;
+    canStart(&CAND1, &can_config);
+    chSemSignal(&can_config_wait);
+
     return true;
 }
 
 void can_close(void)
 {
-    // TODO
+    if (can_is_running) {
+        chSemWait(&can_config_wait);
+        canStop(&CAND1);
+        can_is_running = false;
+        can_rx_queue_flush();
+    }
 }
 
 void can_init(void)
@@ -236,13 +231,13 @@ void can_init(void)
     chPoolObjectInit(&can_rx_pool, sizeof(rx_pool_buf[0]), NULL);
     chPoolLoadArray(&can_rx_pool, rx_pool_buf, sizeof(rx_pool_buf)/sizeof(rx_pool_buf[0]));
 
-    chSemObjectInit(&can_config_wait, 0);
+    chSemObjectInit(&can_config_wait, 1);
 
     uint32_t btr;
     if (!can_btr_from_bitrate(CAN_DEFAULT_BITRATE, &btr)) {
         chSysHalt("CAN default bitrate");
     }
     can_config.btr |= btr;
-    canStart(&CAND1, &can_config);
+
     chThdCreateStatic(can_rx_thread_wa, sizeof(can_rx_thread_wa), NORMALPRIO+2, can_rx_thread, NULL);
 }

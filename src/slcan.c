@@ -14,15 +14,6 @@ int slcan_serial_write(void *arg, const char *buf, size_t len);
 static void slcan_ack(char *buf);
 static void slcan_nack(char *buf);
 
-struct slcan {
-    enum {
-        SLCAN_CLOSED,
-        SLCAN_NORMAL,
-        SLCAN_SILENT,
-        SLCAN_LOOPBACK
-    } mode;
-};
-
 static char hex_digit(const uint8_t b)
 {
     static const char *hex_tbl = "0123456789abcdef";
@@ -45,7 +36,7 @@ static uint8_t hex_val(char c)
     } else if (c >= 'a' && c <= 'f') {
         return c - 'a' + 0xa;
     } else {
-        return c - '0' & 0xf;
+        return (c - '0') & 0xf;
     }
 }
 
@@ -185,19 +176,21 @@ static void set_bitrate(char* line)
     static const uint32_t br_tbl[10] = {10000, 20000, 50000, 100000, 125000,
                                         250000, 500000, 800000, 1000000};
     unsigned char i = line[1];
-    if (i >= '0' && i <= '9') {
-        i -= '0';
-        if (can_set_bitrate(br_tbl[i])) {
-            slcan_ack(line);
-            return;
-        }
+    if (i < '0' || i > '8') {
+        slcan_nack(line);
+        return;
     }
-    slcan_nack(line);
+    i -= '0';
+    if (can_set_bitrate(br_tbl[i])) {
+        slcan_ack(line);
+    } else {
+        slcan_nack(line);
+    }
 }
 
-static void slcan_open(char *line)
+static void slcan_open(char *line, int mode)
 {
-    if (can_open()) {
+    if (can_open(mode)) {
         slcan_ack(line);
     } else {
         slcan_nack(line);
@@ -242,19 +235,25 @@ void slcan_decode_line(char *line)
         set_bitrate(line);
         break;
     case 'O': // open CAN channel
-        slcan_open(line);
+        slcan_open(line, CAN_MODE_NORMAL);
+        break;
+    case 'l': // open in loop back mode
+        slcan_open(line, CAN_MODE_LOOPBACK);
+        break;
+    case 'L': // open in silent mode (listen only)
+        slcan_open(line, CAN_MODE_SILENT);
         break;
     case 'C': // close CAN channel
         slcan_close(line);
         break;
-    // 'l': // open in loop back mode
-    // 'L': // open in silent mode (listen only)
-    // case 'V': // hardware version
-    //     strcpy(line, softwar_version_str);
-    //     break;
-    // case 'v': // firmware version
-    //     strcpy(line, softwar_version_str);
-    //     break;
+    case 'V': // hardware version
+        line = stpcpy(line, hardware_version_str);
+        slcan_ack(line);
+        break;
+    case 'v': // firmware version
+        line = stpcpy(line, software_version_str);
+        slcan_ack(line);
+        break;
     // 'N': // serial number, read as 0xffff
     // 'F': // read status byte
     // 'Z': // timestamp on/off, Zx[CR]

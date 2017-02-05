@@ -18,6 +18,12 @@ struct can_frame_s {
     uint8_t data[8];
 };
 
+enum {
+    CAN_MODE_NORMAL,
+    CAN_MODE_LOOPBACK,
+    CAN_MODE_SILENT
+};
+
 /* non-blocking CAN frame receive, NULL if nothing received */
 struct can_frame_s *can_receive(void);
 void can_frame_delete(struct can_frame_s *f);
@@ -26,11 +32,9 @@ void can_frame_delete(struct can_frame_s *f);
 bool can_send(uint32_t id, bool extended, bool remote, uint8_t *data, size_t length);
 
 bool can_set_bitrate(uint32_t bitrate);
-void can_silent_mode(bool enable);
-void can_loopback_mode(bool enable);
 
 /* returns 0 on success */
-bool can_open(void);
+bool can_open(int mode);
 void can_close(void);
 void can_init(void);
 
