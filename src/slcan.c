@@ -2,19 +2,39 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <string.h>
-#include "slcan_driver.h"
+#include "can_driver.h"
 #include "slcan.h"
+
+#define MAX_LINE_LEN (sizeof("T1111222281122334455667788EA5F\r")+1)
+
+int slcan_serial_get(void *arg);
+int slcan_serial_write(void *arg, const char *buf, size_t len);
 
 static void slcan_ack(char *buf);
 static void slcan_nack(char *buf);
 
-
-#define MAX_LINE_LEN (sizeof("T1111222281122334455667788EA5F\r")+1)
+struct slcan {
+    enum {
+        SLCAN_CLOSED,
+        SLCAN_NORMAL,
+        SLCAN_SILENT,
+        SLCAN_LOOPBACK
+    } mode;
+};
 
 static char hex_digit(const uint8_t b)
 {
-    static const char *hex_table = "0123456789ABCDEF";
-    return hex_table[b & 0x0f];
+    static const char *hex_tbl = "0123456789abcdef";
+    return hex_tbl[b & 0x0f];
+}
+
+static void hex_write(char **p, const uint8_t *data, uint8_t len)
+{
+    unsigned int i;
+    for (i = 0; i < len; i++) {
+        *(*p)++ = hex_digit(data[i]>>4);
+        *(*p)++ = hex_digit(data[i]);
+    }
 }
 
 static uint8_t hex_val(char c)
@@ -28,7 +48,7 @@ static uint8_t hex_val(char c)
     }
 }
 
-static uint32_t hex_read_u32(const char *str, size_t len)
+static uint32_t hex_read_u32(const char *str, uint8_t len)
 {
     uint32_t val;
     unsigned int i;
@@ -38,39 +58,25 @@ static uint32_t hex_read_u32(const char *str, size_t len)
     return val;
 }
 
-// void hex_read(const char *s, int len, uint8_t *buf)
-// {
-//     uint32_t x = 0;
-//     while (*s && len-- > 0) {
-//         if (*s >= '0' && *s <= '9') {
-//             x = (x << 4) | (*s - '0');
-//         } else if (*s >= 'a' && *s <= 'f') {
-//             x = (x << 4) | (*s - 'a' + 0x0a);
-//         } else if (*s >= 'A' && *s <= 'F') {
-//             x = (x << 4) | (*s - 'A' + 0x0A);
-//         } else {
-//             break;
-//         }
-//         s++;
-//     }
-//     return x;
-// }
-
-struct slcan {
-    enum {
-        SLCAN_CLOSED,
-        SLCAN_NORMAL,
-        SLCAN_SILENT,
-        SLCAN_LOOPBACK
-    } mode;
-    uint32_t bitrate;
-    bool use_timestamps;
-} slcan;
-struct slcan *slc = &slcan;
-
-size_t slcan_frame_to_ascii(unsigned char *p, const struct can_frame_s *f)
+static uint8_t hex_read_u8(const char *str)
 {
-    int i;
+    uint8_t val;
+    val = hex_val(*str++);
+    val = (val<<4) || hex_val(*str);
+    return val;
+}
+
+void hex_read(const char *str, uint8_t *buf, size_t len)
+{
+    while (len-- > 0) {
+        *buf++ = hex_read_u8(str);
+        str += 2;
+    }
+}
+
+size_t slcan_frame_to_ascii(char *buf, const struct can_frame_s *f, bool timestamp)
+{
+    char *p = buf;
     uint32_t id = f->id;
 
     // type
@@ -90,9 +96,10 @@ size_t slcan_frame_to_ascii(unsigned char *p, const struct can_frame_s *f)
 
     // ID
     if (f->extended) {
-        for (i = 3; i > 0; i--) {
-            *p++ = hex_digit(id>>(8*i + 4));
-            *p++ = hex_digit(id>>(8*i));
+        int i;
+        for (i = 3; i >= 0; i--) {
+            uint8_t b = id>>(8*i);
+            hex_write(&p, &b, 1);
         }
     } else {
         *p++ = hex_digit(id>>8);
@@ -104,68 +111,98 @@ size_t slcan_frame_to_ascii(unsigned char *p, const struct can_frame_s *f)
     *p++ = hex_digit(f->length);
 
     // data
-    if (!remote_frame) {
-        for (i = 0; i < f->length; i++) {
-            *p++ = hex_digit(f->data[i]>>4);
-            *p++ = hex_digit(f->data[i]);
-        }
+    if (!f->remote) {
+        hex_write(&p, f->data, f->length);
     }
 
     // timestamp
-    if (with_timestamp) {
-        uint16_t t = f->timestamp / 1000;
-        *p++ = hex_digit(t>>12);
-        *p++ = hex_digit(t>>8);
-        *p++ = hex_digit(t>>4);
-        *p++ = hex_digit(t);
+    if (timestamp) {
+        uint16_t t = f->timestamp;
+        uint8_t b[2] = {t>>8, t};
+        hex_write(&p, b, 2);
     }
 
     *p++ = '\r';
+    *p = 0;
 
-    return (size_t)p - (size_t)&slc->rxbuf[0];
+    return (size_t)(p - buf);
 }
 
 #define SLC_STD_ID_LEN 3
-#define SLC_EXT_ID_LEN 7
+#define SLC_EXT_ID_LEN 8
 
-static void slcan_send_frame(char *line)
+void slcan_send_frame(char *line)
 {
-    bool remote = false;
-    bool extended = false;
+    char *out = line;
     uint8_t data[8];
     uint8_t len;
     uint32_t id;
-    if (line[0] == 'r' || line[0] == 'R') {
+    bool remote = false;
+    bool extended = false;
+
+    switch (*line++) {
+    case 'r':
         remote = true;
-    }
-    if (line[0] == 'T' || line[0] == 'R') {
+        /* fallthrought */
+    case 't':
+        id = hex_read_u32(line, SLC_STD_ID_LEN);
+        line += SLC_STD_ID_LEN;
+        break;
+    case 'R':
+        remote = true;
+        /* fallthrought */
+    case 'T':
         extended = true;
-        len = hex_read_u32(line + 1 + SLC_EXT_ID_LEN, 1);
-        id = hex_read_u32(line + 1, SLC_EXT_ID_LEN);
-        line += 2 + SLC_EXT_ID_LEN;
-    } else {
-        len = hex_read_u32(line + 1 + SLC_STD_ID_LEN, 1);
-        id = hex_read_u32(line + 1, SLC_STD_ID_LEN);
-        line += 2 + SLC_STD_ID_LEN;
+        id = hex_read_u32(line, SLC_EXT_ID_LEN);
+        line += SLC_EXT_ID_LEN;
+        break;
+    default:
+        slcan_nack(out);
+        return;
+    };
+
+    len = hex_val(*line++);
+
+    if (len > 8) {
+        slcan_nack(out);
+        return;
     }
+
     if (!remote) {
         hex_read(line, data, len);
     }
-    slcan_frame_send(id, extended, remote, data, len);
+
+    if (can_send(id, extended, remote, data, len)) {
+        slcan_ack(line);
+    } else {
+        slcan_nack(out);
+    }
 }
 
 static void set_bitrate(char* line)
 {
-    static const uint32_t bitrate_table[10] = {10000, 20000, 50000, 100000,
-        125000, 250000, 500000, 800000, 1000000};
+    static const uint32_t br_tbl[10] = {10000, 20000, 50000, 100000, 125000,
+                                        250000, 500000, 800000, 1000000};
     unsigned char i = line[1];
     if (i >= '0' && i <= '9') {
         i -= '0';
-        if (slcan_set_bitrate(bitrate_table[i])) {
+        if (can_set_bitrate(br_tbl[i])) {
             slcan_ack(line);
             return;
         }
     }
+    slcan_nack(line);
+}
+
+static void slcan_open(char *line)
+{
+    // TODO
+    slcan_nack(line);
+}
+
+static void slcan_close(char *line)
+{
+    // TODO
     slcan_nack(line);
 }
 
@@ -221,17 +258,6 @@ void slcan_decode_line(char *line)
     };
 }
 
-
-static int slcan_serial_get(void *arg)
-{
-    // todo
-}
-
-static int slcan_serial_write(void *arg, const char *buf, size_t len)
-{
-    // todo
-}
-
 static size_t slcan_read_line(void *io, char *line, size_t len)
 {
     size_t i;
@@ -247,50 +273,19 @@ static size_t slcan_read_line(void *io, char *line, size_t len)
     return 0;
 }
 
-void slcan_spin(void *io)
+void slcan_spin(void *arg)
 {
     static char rxline[100];
     static char txline[100];
     struct can_frame_s *rxf;
-    if (slcan_read_line(io, rxline, sizeof(rxline)) > 0) {
+    if (slcan_read_line(arg, rxline, sizeof(rxline)) > 0) {
         slcan_decode_line(rxline);
-        slcan_serial_write(io, rxline, strlen(rxline));
+        slcan_serial_write(arg, rxline, strlen(rxline));
     }
-    while ((rxf = slcan_rx_queue_get()) != NULL) {
+    while ((rxf = can_receive()) != NULL) {
         size_t len;
-        len = slcan_frame_to_ascii(txline, rxf);
-        slcan_frame_delete(rxf);
-        slcan_serial_write(io, txline, len);
+        len = slcan_frame_to_ascii(txline, rxf, false);
+        can_frame_delete(rxf);
+        slcan_serial_write(arg, txline, len);
     }
 }
-
-#ifndef TEST
-
-static int slcan_serial_get(void *arg)
-{
-    return chSequentialStreamGet((BaseChannel *)arg);
-}
-
-static int slcan_serial_write(void *arg, const char *buf, size_t len)
-{
-    if (len > 0) {
-        chnWriteTimeout((BaseChannel *)arg, buf, len, MS2ST(100));
-    }
-}
-
-THD_WORKING_AREA(slcan_thread, 1000);
-void slcan_thread_main(void *arg)
-{
-    chRegSetThreadName("USB receiver");
-    while (1) {
-        slcan_spin(arg);
-    }
-}
-
-void slcan_bridge_start(BaseChannel *ch)
-{
-    slcan_driver_start();
-    chThdCreateStatic(slcan_thread, sizeof(slcan_thread),
-        NORMALPRIO, receiver_therad_main, &io_dev);
-}
-#endif

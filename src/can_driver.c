@@ -5,8 +5,8 @@
 
 #define CAN_RX_BUFFER_SIZE   100
 
-// size+3 for the 3 threads handling CAN frames from can_rx_pool
-#define CAN_RX_POOL_SIZE CAN_RX_BUFFER_SIZE + 3
+// size+2 for the 2 threads handling CAN frames from can_rx_pool
+#define CAN_RX_POOL_SIZE CAN_RX_BUFFER_SIZE + 2
 
 #define CAN_BTR_BRP_MASK 0x000003FF
 #define CAN_BTR_TS1_MASK 0x000F0000
@@ -24,13 +24,12 @@
 #define BTR_TS2 5
 #define CAN_BASE_BIT_RATE CAN_BASE_CLOCK / (1 + BTR_TS1 + BTR_TS2)
 
-static void slcan_rx_queue_post(struct can_frame_s *fp);
-static bool slcan_btr_from_bitrate(uint32_t bitrate, uint32_t *btr_value);
-static void slcan_wait_if_stop_requested(void);
-static void slcan_stop(void);
-static void slcan_start(void);
-static void slcan_rx_queue_post(struct can_frame_s *fp);
-static void slcan_rx_queue_flush(void);
+static bool can_btr_from_bitrate(uint32_t bitrate, uint32_t *btr_value);
+static void can_wait_if_stop_requested(void);
+static void can_stop(void);
+static void can_start(void);
+static void can_rx_queue_post(struct can_frame_s *fp);
+static void can_rx_queue_flush(void);
 static uint32_t id_to_filter(uint32_t id);
 static uint32_t mask_to_filter(uint32_t mask, bool id_is_extended);
 
@@ -42,7 +41,7 @@ static CANConfig can_config = {
 };
 
 // searches CAN bit rate register value
-static bool slcan_btr_from_bitrate(uint32_t bitrate, uint32_t *btr_value)
+static bool can_btr_from_bitrate(uint32_t bitrate, uint32_t *btr_value)
 {
     if (bitrate > 1000000 ||
         CAN_BASE_BIT_RATE % bitrate != 0 ||
@@ -58,7 +57,7 @@ static bool slcan_btr_from_bitrate(uint32_t bitrate, uint32_t *btr_value)
 // synchronize between recevier and sender thread
 semaphore_t can_config_wait;
 
-static void slcan_wait_if_stop_requested(void)
+static void can_wait_if_stop_requested(void)
 {
     cnt_t count;
     chSysLock();
@@ -70,13 +69,13 @@ static void slcan_wait_if_stop_requested(void)
     }
 }
 
-static void slcan_stop(void)
+static void can_stop(void)
 {
     chSemWait(&can_config_wait);
     canStop(&CAND1);
 }
 
-static void slcan_start(void)
+static void can_start(void)
 {
     canStart(&CAND1, &can_config);
     chSemSignal(&can_config_wait);
@@ -87,7 +86,7 @@ mailbox_t can_rx_queue;
 msg_t rx_mbox_buf[CAN_RX_BUFFER_SIZE];
 struct can_frame_s rx_pool_buf[CAN_RX_POOL_SIZE];
 
-bool slcan_frame_send(uint32_t id, bool extended, bool remote, void *data, size_t length)
+bool can_send(uint32_t id, bool extended, bool remote, void *data, size_t length)
 {
     led_set(CAN1_STATUS_LED);
     CANTxFrame txf;
@@ -106,7 +105,6 @@ bool slcan_frame_send(uint32_t id, bool extended, bool remote, void *data, size_
         memcpy(&txf.data8[0], data, length);
     }
     msg_t m = canTransmit(&CAND1, CAN_ANY_MAILBOX, &txf, MS2ST(100));
-    timestamp_t now = timestamp_get();
     if (m != MSG_OK) {
         return false;
     }
@@ -129,7 +127,7 @@ static THD_FUNCTION(can_rx_thread, arg) {
         if (fp == NULL) {
             chSysHalt("CAN driver out of memory");
         }
-        fp->timestamp = timestamp_get();
+        fp->timestamp = timestamp_get()/1000;
         if (rxf.IDE) {
             fp->id = rxf.EID;
             fp->extended = 1;
@@ -148,7 +146,7 @@ static THD_FUNCTION(can_rx_thread, arg) {
     }
 }
 
-static void slcan_rx_queue_post(struct can_frame_s *fp)
+static void can_rx_queue_post(struct can_frame_s *fp)
 {
     msg_t m = chMBPost(&can_rx_queue, (msg_t)fp, TIME_IMMEDIATE);
     if (m != MSG_OK) {
@@ -157,7 +155,7 @@ static void slcan_rx_queue_post(struct can_frame_s *fp)
     }
 }
 
-static void slcan_rx_queue_flush(void)
+static void can_rx_queue_flush(void)
 {
     struct can_frame_s *fp;
     while (1) {
@@ -170,12 +168,12 @@ static void slcan_rx_queue_flush(void)
     }
 }
 
-void slcan_frame_delete(struct can_frame_s *f)
+void can_frame_delete(struct can_frame_s *f)
 {
     chPoolFree(&can_rx_pool, f);
 }
 
-struct can_frame_s *slcan_rx_queue_get(void)
+struct can_frame_s *can_rx_queue_get(void)
 {
     struct can_frame_s *fp;
     msg_t m = chMBFetch(&can_rx_queue, (msg_t *)&fp, TIME_IMMEDIATE);
@@ -185,22 +183,22 @@ struct can_frame_s *slcan_rx_queue_get(void)
     return NULL;
 }
 
-bool slcan_set_bitrate(uint32_t bitrate)
+bool can_set_bitrate(uint32_t bitrate)
 {
     bool ok;
-    slcan_stop();
+    can_stop();
     uint32_t btr;
     ok = can_btr_from_bitrate(bitrate, &btr);
     if (ok) {
         can_config.btr = (can_config.btr & ~CAN_BTR_TIMING_MASK) | btr;
     }
-    slcan_start();
+    can_start();
     return ok;
 }
 
-void slcan_silent_mode(bool enable)
+void can_silent_mode(bool enable)
 {
-    slcan_stop();
+    can_stop();
     if (enable) {
         palSetPad(GPIOA, GPIOA_CAN_SILENT);
         can_config.btr |= CAN_BTR_SILM;
@@ -208,21 +206,31 @@ void slcan_silent_mode(bool enable)
         palClearPad(GPIOA, GPIOA_CAN_SILENT);
         can_config.btr &= ~CAN_BTR_SILM;
     }
-    slcan_start();
+    can_start();
 }
 
-void slcan_loopback_mode(bool enable)
+void can_loopback_mode(bool enable)
 {
-    slcan_stop();
+    can_stop();
     if (enable) {
         can_config.btr |= CAN_BTR_LBKM;
     } else {
         can_config.btr &= ~CAN_BTR_LBKM;
     }
-    slcan_start();
+    can_start();
 }
 
-void slcan_init(void)
+int can_open(void)
+{
+
+}
+
+void can_close(void)
+{
+
+}
+
+void can_init(void)
 {
     chMBObjectInit(&can_rx_queue, rx_mbox_buf, sizeof(rx_mbox_buf)/sizeof(rx_mbox_buf[0]));
     chPoolObjectInit(&can_rx_pool, sizeof(rx_pool_buf[0]), NULL);
