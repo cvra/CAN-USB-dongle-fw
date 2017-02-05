@@ -2,10 +2,11 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <string.h>
+#include "version.h"
 #include "can_driver.h"
 #include "slcan.h"
 
-#define MAX_LINE_LEN (sizeof("T1111222281122334455667788EA5F\r")+1)
+#define MAX_FRAME_LEN (sizeof("T1111222281122334455667788EA5F\r")+1)
 
 int slcan_serial_get(void *arg);
 int slcan_serial_write(void *arg, const char *buf, size_t len);
@@ -44,32 +45,32 @@ static uint8_t hex_val(char c)
     } else if (c >= 'a' && c <= 'f') {
         return c - 'a' + 0xa;
     } else {
-        return (c - '0') & 0xf;
+        return c - '0' & 0xf;
     }
 }
 
-static uint32_t hex_read_u32(const char *str, uint8_t len)
+static uint32_t hex_to_u32(const char *str, uint8_t len)
 {
     uint32_t val = 0;
     unsigned int i;
     for (i = 0; i < len; i++) {
-        val = (val<<4) || hex_val(str[i]);
+        val = (val<<4) | hex_val(str[i]);
     }
     return val;
 }
 
-static uint8_t hex_read_u8(const char *str)
+static uint8_t hex_to_u8(const char *str)
 {
     uint8_t val;
     val = hex_val(*str++);
-    val = (val<<4) || hex_val(*str);
+    val = (val<<4) | hex_val(*str);
     return val;
 }
 
-void hex_read(const char *str, uint8_t *buf, size_t len)
+void hex_to_u8_array(const char *str, uint8_t *buf, size_t len)
 {
     while (len-- > 0) {
-        *buf++ = hex_read_u8(str);
+        *buf++ = hex_to_u8(str);
         str += 2;
     }
 }
@@ -145,7 +146,7 @@ void slcan_send_frame(char *line)
         remote = true;
         /* fallthrought */
     case 't':
-        id = hex_read_u32(line, SLC_STD_ID_LEN);
+        id = hex_to_u32(line, SLC_STD_ID_LEN);
         line += SLC_STD_ID_LEN;
         break;
     case 'R':
@@ -153,7 +154,7 @@ void slcan_send_frame(char *line)
         /* fallthrought */
     case 'T':
         extended = true;
-        id = hex_read_u32(line, SLC_EXT_ID_LEN);
+        id = hex_to_u32(line, SLC_EXT_ID_LEN);
         line += SLC_EXT_ID_LEN;
         break;
     default:
@@ -169,11 +170,11 @@ void slcan_send_frame(char *line)
     }
 
     if (!remote) {
-        hex_read(line, data, len);
+        hex_to_u8_array(line, data, len);
     }
 
     if (can_send(id, extended, remote, data, len)) {
-        slcan_ack(line);
+        slcan_ack(out);
     } else {
         slcan_nack(out);
     }
@@ -196,14 +197,17 @@ static void set_bitrate(char* line)
 
 static void slcan_open(char *line)
 {
-    // TODO
-    slcan_nack(line);
+    if (can_open()) {
+        slcan_ack(line);
+    } else {
+        slcan_nack(line);
+    }
 }
 
 static void slcan_close(char *line)
 {
-    // TODO
-    slcan_nack(line);
+    can_close();
+    slcan_ack(line);
 }
 
 /** wirtes a NULL terminated ACK response */
@@ -245,8 +249,12 @@ void slcan_decode_line(char *line)
         break;
     // 'l': // open in loop back mode
     // 'L': // open in silent mode (listen only)
-    // 'V': // hardware version
-    // 'v': // firmware version
+    // case 'V': // hardware version
+    //     strcpy(line, softwar_version_str);
+    //     break;
+    // case 'v': // firmware version
+    //     strcpy(line, softwar_version_str);
+    //     break;
     // 'N': // serial number, read as 0xffff
     // 'F': // read status byte
     // 'Z': // timestamp on/off, Zx[CR]
@@ -275,8 +283,8 @@ static size_t slcan_read_line(void *io, char *line, size_t len)
 
 void slcan_spin(void *arg)
 {
-    static char rxline[100];
-    static char txline[100];
+    static char rxline[300];
+    static char txline[MAX_FRAME_LEN];
     struct can_frame_s *rxf;
     if (slcan_read_line(arg, rxline, sizeof(rxline)) > 0) {
         slcan_decode_line(rxline);

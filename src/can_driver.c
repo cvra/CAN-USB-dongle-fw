@@ -85,7 +85,7 @@ mailbox_t can_rx_queue;
 msg_t rx_mbox_buf[CAN_RX_BUFFER_SIZE];
 struct can_frame_s rx_pool_buf[CAN_RX_POOL_SIZE];
 
-bool can_send(uint32_t id, bool extended, bool remote, void *data, size_t length)
+bool can_send(uint32_t id, bool extended, bool remote, uint8_t *data, size_t length)
 {
     led_set(CAN1_STATUS_LED);
     CANTxFrame txf;

@@ -12,6 +12,12 @@ TEST_GROUP(SlcanTestGroup)
     {
         memset(line, 0, sizeof(line));
     }
+
+    void teardown()
+    {
+        mock().checkExpectations();
+        mock().clear();
+    }
 };
 
 TEST(SlcanTestGroup, CanEncodeStandardFrame)
@@ -88,6 +94,70 @@ TEST(SlcanTestGroup, CanEncodeFrameWithTimestamp)
     CHECK_EQUAL(strlen(expect), len);
 }
 
+TEST(SlcanTestGroup, CanDecodeStandardFrame)
+{
+    uint8_t data[] = {0x2a};
+    mock().expectOneCall("can_send")
+          .withParameter("id", 0x100)
+          .withParameter("extended", false)
+          .withParameter("remote", false)
+          .withMemoryBufferParameter("data", data, sizeof(data))
+          .withParameter("length", sizeof(data));
+
+    strcpy(line, "t10012a\r");
+    slcan_send_frame(line);
+
+    STRCMP_EQUAL("\r", line);
+}
+
+TEST(SlcanTestGroup, CanDecodeExtendedFrame)
+{
+    uint8_t data[] = {1,2,3,4,5,6,7,8};
+    mock().expectOneCall("can_send")
+          .withParameter("id", 0xabcdef)
+          .withParameter("extended", true)
+          .withParameter("remote", false)
+          .withMemoryBufferParameter("data", data, sizeof(data))
+          .withParameter("length", sizeof(data));
+
+    strcpy(line, "T00abcdef80102030405060708\r");
+    slcan_send_frame(line);
+
+    STRCMP_EQUAL("\r", line);
+}
+
+TEST(SlcanTestGroup, CanDecodeExtendedRemoteFrame)
+{
+    uint8_t data[] = {};
+    mock().expectOneCall("can_send")
+          .withParameter("id", 0x1000)
+          .withParameter("extended", true)
+          .withParameter("remote", true)
+          .withMemoryBufferParameter("data", data, 0)
+          .withParameter("length", 8);
+
+    strcpy(line, "R000010008\r");
+    slcan_send_frame(line);
+
+    STRCMP_EQUAL("\r", line);
+}
+
+TEST(SlcanTestGroup, CanDecodeStandardRemoteFrame)
+{
+    uint8_t data[] = {};
+    mock().expectOneCall("can_send")
+          .withParameter("id", 0x100)
+          .withParameter("extended", false)
+          .withParameter("remote", true)
+          .withMemoryBufferParameter("data", data, 0)
+          .withParameter("length", 2);
+
+    strcpy(line, "r1002\r");
+    slcan_send_frame(line);
+
+    STRCMP_EQUAL("\r", line);
+}
+
 int main(int ac, char** av)
 {
     return CommandLineTestRunner::RunAllTests(ac, av);
@@ -95,6 +165,9 @@ int main(int ac, char** av)
 
 // mocks
 extern "C" {
+
+const char * softwar_version_str = "software version str";
+const char * hardware_version_str = "hardware version str";
 
 int slcan_serial_get(void *arg)
 {
@@ -116,8 +189,15 @@ void can_frame_delete(struct can_frame_s *f)
     (void) f;
 }
 
-bool can_send(uint32_t id, bool extended, bool remote, void *data, size_t length)
+bool can_send(uint32_t id, bool extended, bool remote, uint8_t *data, size_t length)
 {
+    size_t data_length = remote ? 0 : length;
+    mock().actualCall("can_send")
+          .withParameter("id", id)
+          .withParameter("extended", extended)
+          .withParameter("remote", remote)
+          .withMemoryBufferParameter("data", data, data_length)
+          .withParameter("length", length);
     return true;
 }
 
