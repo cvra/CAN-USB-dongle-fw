@@ -8,7 +8,6 @@
 
 #define MAX_FRAME_LEN (sizeof("T1111222281122334455667788EA5F\r")+1)
 
-int slcan_serial_get(void *arg);
 int slcan_serial_write(void *arg, const char *buf, size_t len);
 char *slcan_getline(void *arg);
 

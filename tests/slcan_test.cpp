@@ -254,11 +254,6 @@ void can_close(void)
 
 /* dummy functions */
 
-int slcan_serial_get(void *arg)
-{
-    return 0;
-}
-
 int slcan_serial_write(void *arg, const char *buf, size_t len)
 {
     return 0;
