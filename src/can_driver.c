@@ -165,7 +165,7 @@ void can_frame_delete(struct can_frame_s *f)
 struct can_frame_s *can_receive(void)
 {
     struct can_frame_s *fp;
-    msg_t m = chMBFetch(&can_rx_queue, (msg_t *)&fp, TIME_IMMEDIATE);
+    msg_t m = chMBFetch(&can_rx_queue, (msg_t *)&fp, MS2ST(1));
     if (m == MSG_OK) {
         return fp;
     }

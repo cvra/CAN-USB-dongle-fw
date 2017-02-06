@@ -52,6 +52,5 @@ void slcan_thread_main(void *arg)
 void slcan_start(BaseChannel *ch)
 {
     can_init();
-    chThdCreateStatic(slcan_thread, sizeof(slcan_thread),
-        NORMALPRIO+1, slcan_thread_main, ch);
+    chThdCreateStatic(slcan_thread, sizeof(slcan_thread), NORMALPRIO, slcan_thread_main, ch);
 }
