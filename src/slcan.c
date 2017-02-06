@@ -272,7 +272,10 @@ void slcan_spin(void *arg)
         slcan_decode_line(line);
         slcan_serial_write(arg, line, strlen(line));
     }
+}
 
+void slcan_rx_spin(void *arg)
+{
     struct can_frame_s *rxf;
     while ((rxf = can_receive()) != NULL) {
         static char txbuf[MAX_FRAME_LEN];
