@@ -10,6 +10,7 @@
 
 int slcan_serial_get(void *arg);
 int slcan_serial_write(void *arg, const char *buf, size_t len);
+char *slcan_getline(void *arg);
 
 static void slcan_ack(char *buf);
 static void slcan_nack(char *buf);
@@ -254,7 +255,7 @@ void slcan_decode_line(char *line)
         line = stpcpy(line, software_version_str);
         slcan_ack(line);
         break;
-    // 'N': // serial number, read as 0xffff
+    // 'N': // serial number
     // 'F': // read status byte
     // 'Z': // timestamp on/off, Zx[CR]
     // 'm': // acceptance mask, mxxxxxxxx[CR]
@@ -265,34 +266,20 @@ void slcan_decode_line(char *line)
     };
 }
 
-static size_t slcan_read_line(void *io, char *line, size_t len)
-{
-    size_t i;
-    for (i = 0; i < len; i++) {
-        char c = slcan_serial_get(io);
-        if (c == '\n' || c == '\r' || c == '\0') {
-            line[i] = 0;
-            return i;
-        } else {
-            line[i] = c;
-        }
-    }
-    return 0;
-}
-
 void slcan_spin(void *arg)
 {
-    static char rxline[300];
-    static char txline[MAX_FRAME_LEN];
-    struct can_frame_s *rxf;
-    if (slcan_read_line(arg, rxline, sizeof(rxline)) > 0) {
-        slcan_decode_line(rxline);
-        slcan_serial_write(arg, rxline, strlen(rxline));
+    char *line = slcan_getline(arg);
+    if (line) {
+        slcan_decode_line(line);
+        slcan_serial_write(arg, line, strlen(line));
     }
+
+    struct can_frame_s *rxf;
     while ((rxf = can_receive()) != NULL) {
+        static char txbuf[MAX_FRAME_LEN];
         size_t len;
-        len = slcan_frame_to_ascii(txline, rxf, false);
+        len = slcan_frame_to_ascii(txbuf, rxf, false);
         can_frame_delete(rxf);
-        slcan_serial_write(arg, txline, len);
+        slcan_serial_write(arg, txbuf, len);
     }
 }

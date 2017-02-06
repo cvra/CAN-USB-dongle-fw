@@ -239,5 +239,5 @@ void can_init(void)
     }
     can_config.btr |= btr;
 
-    chThdCreateStatic(can_rx_thread_wa, sizeof(can_rx_thread_wa), NORMALPRIO+2, can_rx_thread, NULL);
+    chThdCreateStatic(can_rx_thread_wa, sizeof(can_rx_thread_wa), NORMALPRIO, can_rx_thread, NULL);
 }

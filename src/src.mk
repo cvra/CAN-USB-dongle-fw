@@ -3,6 +3,7 @@ PROJINC += ./src/
 
 PROJCSRC += ./src/main.c
 PROJCSRC += ./src/slcan.c
+PROJCSRC += ./src/slcan_thread.c
 PROJCSRC += ./src/can_driver.c
 PROJCSRC += ./src/bus_power.c
 PROJCSRC += ./src/uart_bridge.c

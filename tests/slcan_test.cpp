@@ -274,4 +274,9 @@ void can_frame_delete(struct can_frame_s *f)
     (void) f;
 }
 
+char *slcan_getline(void *arg)
+{
+    return NULL;
+}
+
 }
