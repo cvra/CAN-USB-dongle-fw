@@ -28,6 +28,7 @@ git submodule update --init
 make
 
 # flashing using USB DFU
+# to enter DFU mode, press the button while plugging USB in.
 make dfu
 ```
 
