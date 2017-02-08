@@ -85,8 +85,6 @@ include $(CHIBIOS)/os/hal/osal/rt/osal.mk
 # RTOS files (optional).
 include $(CHIBIOS)/os/rt/rt.mk
 include $(CHIBIOS)/os/rt/ports/ARMCMx/compilers/GCC/mk/port_v7m.mk
-# Project sources
-include src/src.mk
 
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
@@ -99,18 +97,27 @@ CSRC = $(STARTUPSRC) \
        $(CHIBIOS)/os/hal/lib/streams/chprintf.c \
 	   $(BOARDSRC) \
 	   src/version.c \
-	   $(PROJCSRC)
+	   src/main.c \
+	   src/slcan.c \
+	   src/slcan_thread.c \
+	   src/can_driver.c \
+	   src/bus_power.c \
+	   src/uart_bridge.c \
+	   src/usbcfg.c \
+	   src/timestamp/timestamp.c \
+	   src/timestamp/timestamp_stm32.c
+
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
-CPPSRC = $(PROJCPPSRC)
+CPPSRC =
 
 # List ASM source files here
-ASMSRC = $(STARTUPASM) $(PORTASM) $(OSALASM) $(PROJASMSRC)
+ASMSRC = $(STARTUPASM) $(PORTASM) $(OSALASM)
 
 INCDIR = $(STARTUPINC) $(KERNINC) $(PORTINC) $(OSALINC) \
          $(HALINC) $(PLATFORMINC) $(CHIBIOS)/os/various \
-         $(CHIBIOS)/os/hal/lib/streams $(PROJINC) $(BOARDINC)
+         $(CHIBIOS)/os/hal/lib/streams ./src $(BOARDINC)
 
 #
 # Project, sources and paths
@@ -182,8 +189,6 @@ ULIBS =
 #
 # End of user defines
 ##############################################################################
-
-GLOBAL_SRC_DEP = src/src.mk
 
 RULESPATH = rules
 include $(RULESPATH)/rules.mk
