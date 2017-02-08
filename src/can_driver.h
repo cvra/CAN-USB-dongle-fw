@@ -31,9 +31,10 @@ void can_frame_delete(struct can_frame_s *f);
 /* blocking CAN frame send */
 bool can_send(uint32_t id, bool extended, bool remote, uint8_t *data, size_t length);
 
+/* returns true on success, must be called before can_open */
 bool can_set_bitrate(uint32_t bitrate);
 
-/* returns 0 on success */
+/* returns true on success */
 bool can_open(int mode);
 void can_close(void);
 void can_init(void);
