@@ -2,18 +2,18 @@
 #include <hal.h>
 #include <string.h>
 #include <timestamp/timestamp.h>
-#include "protocol.h"
 #include "can_driver.h"
 
 #define CAN_RX_BUFFER_SIZE   100
 
-// size+3 for the 3 threads handling CAN frames from can_rx_pool
-#define CAN_RX_POOL_SIZE CAN_RX_BUFFER_SIZE + 3
+// size+2 for the 2 threads handling CAN frames from can_rx_pool
+#define CAN_RX_POOL_SIZE CAN_RX_BUFFER_SIZE + 2
 
 #define CAN_BTR_BRP_MASK 0x000003FF
 #define CAN_BTR_TS1_MASK 0x000F0000
 #define CAN_BTR_TS2_MASK 0x00700000
 #define CAN_BTR_TIMING_MASK (CAN_BTR_BRP_MASK | CAN_BTR_TS1_MASK | CAN_BTR_TS2_MASK)
+
 #if !defined(CAN_DEFAULT_BITRATE)
 #define CAN_DEFAULT_BITRATE     1000000
 #endif
@@ -26,21 +26,17 @@
 #define BTR_TS2 5
 #define CAN_BASE_BIT_RATE CAN_BASE_CLOCK / (1 + BTR_TS1 + BTR_TS2)
 
-static void can_rx_queue_post(struct can_rx_frame_s *fp);
 static bool can_btr_from_bitrate(uint32_t bitrate, uint32_t *btr_value);
-static void can_wait_if_stop_requested(void);
-static void can_stop(void);
-static void can_start(void);
-static void can_rx_queue_post(struct can_rx_frame_s *fp);
+static void wait_on_request(void);
+static void can_rx_queue_post(struct can_frame_s *fp);
 static void can_rx_queue_flush(void);
-static uint32_t id_to_filter(uint32_t id);
-static uint32_t mask_to_filter(uint32_t mask, bool id_is_extended);
 
-static bool can_loopback_mode_active = true;
+bool can_is_running = false;
+
 static CANConfig can_config = {
     .mcr = (1 << 6)  // Automatic bus-off management enabled
          | (1 << 2), // Message are prioritized by order of arrival
-    .btr = CAN_BTR_SILM // Silent mode, (NO Loopback!)
+    .btr = CAN_BTR_SILM // Silent mode
          | CAN_BTR_SJW_0 // 2tq resynchronization jump width
 };
 
@@ -59,9 +55,9 @@ static bool can_btr_from_bitrate(uint32_t bitrate, uint32_t *btr_value)
 }
 
 // synchronize between recevier and sender thread
-semaphore_t can_config_wait;
+SEMAPHORE_DECL(can_config_wait, 1);
 
-static void can_wait_if_stop_requested(void)
+static void wait_on_request(void)
 {
     cnt_t count;
     chSysLock();
@@ -73,25 +69,12 @@ static void can_wait_if_stop_requested(void)
     }
 }
 
-static void can_stop(void)
-{
-    chSemWait(&can_config_wait);
-    canStop(&CAND1);
-}
-
-static void can_start(void)
-{
-    canStart(&CAND1, &can_config);
-    chSemSignal(&can_config_wait);
-}
-
 memory_pool_t can_rx_pool;
 mailbox_t can_rx_queue;
 msg_t rx_mbox_buf[CAN_RX_BUFFER_SIZE];
-bool can_rx_overflow = false;
-struct can_rx_frame_s rx_pool_buf[CAN_RX_POOL_SIZE];
+struct can_frame_s rx_pool_buf[CAN_RX_POOL_SIZE];
 
-bool can_frame_send(uint32_t id, bool extended, bool remote, void *data, size_t length)
+bool can_send(uint32_t id, bool extended, bool remote, uint8_t *data, size_t length)
 {
     led_set(CAN1_STATUS_LED);
     CANTxFrame txf;
@@ -110,74 +93,60 @@ bool can_frame_send(uint32_t id, bool extended, bool remote, void *data, size_t 
         memcpy(&txf.data8[0], data, length);
     }
     msg_t m = canTransmit(&CAND1, CAN_ANY_MAILBOX, &txf, MS2ST(100));
-    timestamp_t now = timestamp_get();
     if (m != MSG_OK) {
         return false;
-    }
-    if (can_loopback_mode_active) {
-        struct can_rx_frame_s *fp = (struct can_rx_frame_s *)chPoolAlloc(&can_rx_pool);
-        if (fp == NULL) {
-            chSysHalt("CAN driver out of memory");
-        }
-        fp->timestamp = now;
-        fp->error = false;
-        fp->frame.id = id;
-        fp->frame.extended = extended ? 1 : 0;
-        fp->frame.remote = remote ? 1 : 0;
-        fp->frame.length = length;
-        can_rx_queue_post(fp);
     }
     return true;
 }
 
 static THD_WORKING_AREA(can_rx_thread_wa, 256);
-static THD_FUNCTION(can_rx_thread, arg) {
+static THD_FUNCTION(can_rx_thread, arg)
+{
     (void)arg;
     chRegSetThreadName("CAN rx");
     while (1) {
-        can_wait_if_stop_requested();
+        wait_on_request();
         CANRxFrame rxf;
         msg_t m = canReceive(&CAND1, CAN_ANY_MAILBOX, &rxf, MS2ST(10));
         if (m != MSG_OK) {
             continue;
         }
         led_set(CAN1_STATUS_LED);
-        struct can_rx_frame_s *fp = (struct can_rx_frame_s *)chPoolAlloc(&can_rx_pool);
+        struct can_frame_s *fp = (struct can_frame_s *)chPoolAlloc(&can_rx_pool);
         if (fp == NULL) {
             chSysHalt("CAN driver out of memory");
         }
-        fp->timestamp = timestamp_get();
-        fp->error = false;
+        fp->timestamp = timestamp_get()/1000;
         if (rxf.IDE) {
-            fp->frame.id = rxf.EID;
-            fp->frame.extended = 1;
+            fp->id = rxf.EID;
+            fp->extended = 1;
         } else {
-            fp->frame.id = rxf.SID;
-            fp->frame.extended = 0;
+            fp->id = rxf.SID;
+            fp->extended = 0;
         }
         if (rxf.RTR) {
-            fp->frame.remote = 1;
+            fp->remote = 1;
         } else {
-            fp->frame.remote = 0;
+            fp->remote = 0;
         }
-        fp->frame.length = rxf.DLC;
-        memcpy(&fp->frame.data[0], &rxf.data8[0], rxf.DLC);
+        fp->length = rxf.DLC;
+        memcpy(&fp->data[0], &rxf.data8[0], rxf.DLC);
         can_rx_queue_post(fp);
     }
 }
 
-static void can_rx_queue_post(struct can_rx_frame_s *fp)
+static void can_rx_queue_post(struct can_frame_s *fp)
 {
     msg_t m = chMBPost(&can_rx_queue, (msg_t)fp, TIME_IMMEDIATE);
     if (m != MSG_OK) {
-        can_rx_overflow = true;
         chPoolFree(&can_rx_pool, fp);
+        can_rx_queue_flush();
     }
 }
 
 static void can_rx_queue_flush(void)
 {
-    struct can_rx_frame_s *fp;
+    struct can_frame_s *fp;
     while (1) {
         msg_t m = chMBFetch(&can_rx_queue, (msg_t *)&fp, TIME_IMMEDIATE);
         if (m == MSG_OK) {
@@ -188,20 +157,14 @@ static void can_rx_queue_flush(void)
     }
 }
 
-void can_rx_frame_delete(struct can_rx_frame_s *f)
+void can_frame_delete(struct can_frame_s *f)
 {
     chPoolFree(&can_rx_pool, f);
 }
 
-struct can_rx_frame_s *can_frame_receive(bool *drop)
+struct can_frame_s *can_receive(void)
 {
-    struct can_rx_frame_s *fp;
-    *drop = can_rx_overflow;
-    if (can_rx_overflow) {
-        can_rx_queue_flush();
-        can_rx_overflow = false;
-        return NULL;
-    }
+    struct can_frame_s *fp;
     msg_t m = chMBFetch(&can_rx_queue, (msg_t *)&fp, MS2ST(100));
     if (m == MSG_OK) {
         return fp;
@@ -211,109 +174,70 @@ struct can_rx_frame_s *can_frame_receive(bool *drop)
 
 bool can_set_bitrate(uint32_t bitrate)
 {
-    bool ok;
-    can_stop();
-    uint32_t btr;
-    ok = can_btr_from_bitrate(bitrate, &btr);
-    if (ok) {
-        can_config.btr = (can_config.btr & ~CAN_BTR_TIMING_MASK) | btr;
-    }
-    can_start();
-    return ok;
-}
-
-static uint32_t id_to_filter(uint32_t id)
-{
-    uint32_t filter;
-    if (id & CAN_ID_EXTENDED) {
-        filter = (id & CAN_ID_MASK)<<3 | (1<<2);
-    } else {
-        filter = (id & CAN_ID_MASK)<<21;
-    }
-    if (id & CAN_ID_REMOTE) {
-        filter |= (1<<1);
-    }
-    return filter;
-}
-
-static uint32_t mask_to_filter(uint32_t mask, bool id_is_extended)
-{
-    uint32_t filter;
-    if (id_is_extended) {
-        filter = (mask & CAN_ID_MASK)<<3;
-    } else {
-        filter = (mask & CAN_ID_MASK)<<21;
-    }
-    if (mask & CAN_ID_EXTENDED) {
-        filter |= (1<<2);
-    }
-    if (mask & CAN_ID_REMOTE) {
-        filter |= (1<<1);
-    }
-    return filter;
-}
-
-bool can_filter_set(cmp_ctx_t *in)
-{
-    static CANFilter filter[STM32_CAN_MAX_FILTERS];
-    uint32_t length;
-    if (!cmp_read_array(in, &length) || length > STM32_CAN_MAX_FILTERS) {
+    if (can_is_running) {
         return false;
     }
-    uint32_t i;
-    for (i = 0; i < length; i++) {
-        uint32_t len, id, mask;
-        if (!cmp_read_array(in, &len) && len != 2) {
-            return false;
-        }
-        if (!cmp_read_uint(in, &id) || !cmp_read_uint(in, &mask)) {
-            return false;
-        }
-        filter[i].filter = i;
-        filter[i].mode = 0; // mask mode
-        filter[i].scale = 1; // 32bit
-        filter[i].assignment = 0; // FIFO0, required by driver
-        filter[i].register1 = id_to_filter(id);
-        filter[i].register2 = mask_to_filter(mask, id & CAN_ID_EXTENDED);
+
+    uint32_t btr;
+    if (can_btr_from_bitrate(bitrate, &btr)) {
+        can_config.btr = (can_config.btr & ~CAN_BTR_TIMING_MASK) | btr;
+        return true;
+    } else {
+        return false;
     }
-    can_stop();
-    canSTM32SetFilters(1, length, filter);
-    can_start();
+}
+
+bool can_open(int mode)
+{
+    if (can_is_running) {
+        return false;
+    }
+
+    // CAN_MODE_NORMAL
+    palClearPad(GPIOA, GPIOA_CAN_SILENT);
+    can_config.btr &= ~CAN_BTR_LBKM;
+    can_config.btr &= ~CAN_BTR_SILM;
+
+    switch (mode) {
+    case CAN_MODE_LOOPBACK:
+        can_config.btr |= CAN_BTR_LBKM;
+        break;
+    case CAN_MODE_SILENT:
+        can_config.btr |= CAN_BTR_SILM;
+        palSetPad(GPIOA, GPIOA_CAN_SILENT);
+        break;
+    };
+
+    can_is_running = true;
+    canStart(&CAND1, &can_config);
+    chSemSignal(&can_config_wait);
+
     return true;
 }
 
-void can_silent_mode(bool enable)
+void can_close(void)
 {
-    can_stop();
-    if (enable) {
-        palSetPad(GPIOA, GPIOA_CAN_SILENT);
-        can_config.btr |= CAN_BTR_SILM;
-    } else {
-        palClearPad(GPIOA, GPIOA_CAN_SILENT);
-        can_config.btr &= ~CAN_BTR_SILM;
+    if (can_is_running) {
+        chSemWait(&can_config_wait);
+        canStop(&CAND1);
+        can_is_running = false;
+        can_rx_queue_flush();
     }
-    can_start();
 }
 
-void can_loopback_mode(bool enable)
+void can_init(void)
 {
-    can_loopback_mode_active = enable;
-}
-
-void can_driver_start(void)
-{
-    can_rx_overflow = false;
     chMBObjectInit(&can_rx_queue, rx_mbox_buf, sizeof(rx_mbox_buf)/sizeof(rx_mbox_buf[0]));
     chPoolObjectInit(&can_rx_pool, sizeof(rx_pool_buf[0]), NULL);
     chPoolLoadArray(&can_rx_pool, rx_pool_buf, sizeof(rx_pool_buf)/sizeof(rx_pool_buf[0]));
 
-    chSemObjectInit(&can_config_wait, 0);
+    chSemObjectInit(&can_config_wait, 1);
 
     uint32_t btr;
     if (!can_btr_from_bitrate(CAN_DEFAULT_BITRATE, &btr)) {
         chSysHalt("CAN default bitrate");
     }
     can_config.btr |= btr;
-    canStart(&CAND1, &can_config);
-    chThdCreateStatic(can_rx_thread_wa, sizeof(can_rx_thread_wa), NORMALPRIO+2, can_rx_thread, NULL);
+
+    chThdCreateStatic(can_rx_thread_wa, sizeof(can_rx_thread_wa), NORMALPRIO, can_rx_thread, NULL);
 }

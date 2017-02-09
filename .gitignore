@@ -12,12 +12,9 @@
 build/*
 .dep/
 
-# python
-*.pyc
-
 # ctags
 .tags
 .tags_sorted_by_file
 
-# packeger
-src/src.mk
+src/version.c
+
