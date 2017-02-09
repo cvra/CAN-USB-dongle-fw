@@ -5,6 +5,9 @@ set(CMAKE_BUILD_TYPE Debug)
 
 include_directories(../src)
 
+list( APPEND CMAKE_CXX_FLAGS "-std=c++0x -Wall -Wextra")
+list( APPEND CMAKE_C_FLAGS "-Wall -Wextra -Wno-char-subscripts -std=gnu99")
+
 add_executable(
     tests
     ../src/slcan.c
