@@ -1,4 +1,4 @@
-# CVRA CAN to USB interface
+# CVRA CAN to USB interface [![Build Status](https://travis-ci.org/cvra/CAN-USB-dongle-fw.svg?branch=master)](https://travis-ci.org/cvra/CAN-USB-dongle-fw)
 
 ## Usage
 
