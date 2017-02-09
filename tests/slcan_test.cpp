@@ -2,12 +2,12 @@
 #include "CppUTestExt/MockSupport.h"
 #include "CppUTest/CommandLineTestRunner.h"
 #include <cstring>
-#include <cstdint>
 #include "../src/slcan.h"
 #include "../src/can_driver.h"
 
 
 extern "C" {
+#include <stdint.h>
     size_t slcan_frame_to_ascii(char *buf, const struct can_frame_s *f, bool timestamp);
     void slcan_send_frame(char *line);
     void slcan_decode_line(char *line);
