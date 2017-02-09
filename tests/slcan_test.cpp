@@ -1,6 +1,7 @@
 #include "CppUTest/TestHarness.h"
 #include "CppUTestExt/MockSupport.h"
 #include "CppUTest/CommandLineTestRunner.h"
+#include <cstring>
 #include "../src/slcan.h"
 #include "../src/can_driver.h"
 
