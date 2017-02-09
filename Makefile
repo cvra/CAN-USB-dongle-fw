@@ -193,8 +193,12 @@ ULIBS =
 RULESPATH = rules
 include $(RULESPATH)/rules.mk
 
-PRE_MAKE_ALL_RULE_HOOK:
-	./version.sh
+PRE_MAKE_ALL_RULE_HOOK: src/version.c
+.PHONY: src/version.c
+
+src/version.c:
+	@rm -f src/version.c
+	@./version.sh
 
 .PHONY: flash
 flash: build/$(PROJECT).elf
