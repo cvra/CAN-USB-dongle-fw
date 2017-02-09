@@ -16,11 +16,11 @@ language: cpp
 matrix:
   include:
     - compiler: clang
-     env: BUILD_TYPE="tests"
+      env: BUILD_TYPE="tests"
     - compiler: gcc
-     env: BUILD_TYPE="tests"
+      env: BUILD_TYPE="tests"
     - compiler: gcc
-     env: BUILD_TYPE="build"
+      env: BUILD_TYPE="build"
 
 before_install:
   - if [ "$CXX" = "g++" ]; then export CXX="g++-4.9" CC="gcc-4.9"; fi
