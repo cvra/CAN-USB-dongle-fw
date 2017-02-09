@@ -16,7 +16,7 @@ else
         pushd ..
         wget "https://github.com/cpputest/cpputest/releases/download/v3.8/cpputest-3.8.tar.gz" -O cpputest.tar.gz
         tar -xzf cpputest.tar.gz
-        cd cpputest-3.6/
+        cd cpputest-3.8/
         ./configure --prefix=$HOME/cpputest
         make
         make install
