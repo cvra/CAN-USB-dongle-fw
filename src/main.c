@@ -1,7 +1,6 @@
 #include <ch.h>
 #include <hal.h>
-#include "usbcfg.h"
-#include "uart_bridge.h"
+#include "usbcfg2.h"
 #include "bus_power.h"
 #include "can_driver.h"
 #include "slcan.h"
@@ -35,8 +34,6 @@ void user_button_poll(void)
     }
 }
 
-SerialUSBDriver SDU1, SDU2;
-
 int main(void)
 {
     halInit();
@@ -50,20 +47,17 @@ int main(void)
 
     // USB CDC
     sduObjectInit(&SDU1);
-    sduStart(&SDU1, &serusbcfg1);
-    sduObjectInit(&SDU2);
-    sduStart(&SDU2, &serusbcfg2);
+    sduStart(&SDU1, &serusbcfg);
 
-    usbDisconnectBus(serusbcfg1.usbp);
+    usbDisconnectBus(serusbcfg.usbp);
     chThdSleepMilliseconds(1500);
-    usbStart(serusbcfg1.usbp, &usbcfg);
-    usbConnectBus(serusbcfg1.usbp);
+    usbStart(serusbcfg.usbp, &usbcfg);
+    usbConnectBus(serusbcfg.usbp);
 
     while (SDU1.config->usbp->state != USB_ACTIVE) {
         chThdSleepMilliseconds(10);
     }
 
-    uart_bridge_start((BaseChannel *)&SDU2);
     slcan_start((BaseChannel *)&SDU1);
 
     while (1) {

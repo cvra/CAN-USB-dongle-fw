@@ -102,8 +102,7 @@ CSRC = $(STARTUPSRC) \
 	   src/slcan_thread.c \
 	   src/can_driver.c \
 	   src/bus_power.c \
-	   src/uart_bridge.c \
-	   src/usbcfg.c \
+	   src/usbcfg2.c \
 	   src/timestamp/timestamp.c \
 	   src/timestamp/timestamp_stm32.c
 
