@@ -259,6 +259,9 @@ void slcan_decode_line(char *line)
         line[2] = '0';
         slcan_ack(line);
         break;
+    case '\0': // Empty line, requires an ACK to be sent back
+        slcan_ack(line);
+        break;
     // 'N': // serial number
     // 'F': // read status byte
     // 'Z': // timestamp on/off, Zx[CR]
