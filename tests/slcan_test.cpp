@@ -271,6 +271,9 @@ void can_close(void)
 
 int slcan_serial_write(void *arg, const char *buf, size_t len)
 {
+    (void) arg;
+    (void) buf;
+    (void) len;
     return 0;
 }
 
@@ -286,6 +289,7 @@ void can_frame_delete(struct can_frame_s *f)
 
 char *slcan_getline(void *arg)
 {
+    (void) arg;
     return NULL;
 }
 
