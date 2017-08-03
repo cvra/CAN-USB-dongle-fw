@@ -5,8 +5,8 @@ set(CMAKE_BUILD_TYPE Debug)
 
 include_directories(../src)
 
-list( APPEND CMAKE_CXX_FLAGS "-std=c++0x -Wall -Wextra")
-list( APPEND CMAKE_C_FLAGS "-Wall -Wextra -Wno-char-subscripts -std=gnu99")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -Wall -Wextra")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99 -Wall -Wextra -Wno-char-subscripts")
 
 add_executable(
     tests
