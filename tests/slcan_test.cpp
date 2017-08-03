@@ -32,6 +32,7 @@ TEST_GROUP(SlcanTestGroup)
 TEST(SlcanTestGroup, CanEncodeStandardFrame)
 {
     struct can_frame_s frame = {
+        .timestamp = 0,
         .id = 0x72a,
         .extended = false,
         .remote = false,
@@ -47,6 +48,7 @@ TEST(SlcanTestGroup, CanEncodeStandardFrame)
 TEST(SlcanTestGroup, CanEncodeExtendedFrame)
 {
     struct can_frame_s frame = {
+        .timestamp = 0,
         .id = 0x1234abcd,
         .extended = true,
         .remote = false,
@@ -62,10 +64,12 @@ TEST(SlcanTestGroup, CanEncodeExtendedFrame)
 TEST(SlcanTestGroup, CanEncodeStandardRemoteFrame)
 {
     struct can_frame_s frame = {
+        .timestamp = 0,
         .id = 0x72a,
         .extended = false,
         .remote = true,
         .length = 8,
+        .data = {0}
     };
     size_t len = slcan_frame_to_ascii(line, &frame, false);
     const char *expect = "r72a8\r";
@@ -76,10 +80,12 @@ TEST(SlcanTestGroup, CanEncodeStandardRemoteFrame)
 TEST(SlcanTestGroup, CanEncodeExtendedRemoteFrame)
 {
     struct can_frame_s frame = {
+        .timestamp = 0,
         .id = 0x1234abcd,
         .extended = true,
         .remote = true,
         .length = 4,
+        .data = {0}
     };
     size_t len = slcan_frame_to_ascii(line, &frame, false);
     const char *expect = "R1234abcd4\r";
@@ -90,12 +96,12 @@ TEST(SlcanTestGroup, CanEncodeExtendedRemoteFrame)
 TEST(SlcanTestGroup, CanEncodeFrameWithTimestamp)
 {
     struct can_frame_s frame = {
+        .timestamp = 0xdead,
         .id = 0x100,
         .extended = false,
         .remote = false,
         .length = 1,
         .data = {0x2a},
-        .timestamp = 0xdead
     };
     size_t len = slcan_frame_to_ascii(line, &frame, true);
     const char *expect = "t10012adead\r";
