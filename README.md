@@ -41,4 +41,7 @@ make dfu
 - 'l', 'L': open in loop back or silent mode
 - 'C': close channel
 - 'V', 'v': hardware and software version
+- 'P', 'p': turn bus power on and off respectively.
+    This is a proprietary extension to the SLCAN protocol.
+    A tool is included to make use of this feature.
 
