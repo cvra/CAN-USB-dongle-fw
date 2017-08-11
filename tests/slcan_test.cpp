@@ -4,6 +4,7 @@
 #include <cstring>
 #include "../src/slcan.h"
 #include "../src/can_driver.h"
+#include "../src/bus_power.h"
 
 
 extern "C" {
@@ -227,6 +228,23 @@ TEST(SlcanTestGroup, SoftwareVersionCommand)
     STRCMP_EQUAL("software version str\r", line);
 }
 
+TEST(SlcanTestGroup, PowerOnBusCommand)
+{
+    mock().expectOneCall("bus_power").withParameter("enable", true);
+    strcpy(line, "P\r");
+    slcan_decode_line(line);
+    STRCMP_EQUAL("\r", line);
+}
+
+TEST(SlcanTestGroup, PowerOffBusCommand)
+{
+    mock().expectOneCall("bus_power").withParameter("enable", false);
+    strcpy(line, "p\r");
+    slcan_decode_line(line);
+    STRCMP_EQUAL("\r", line);
+}
+
+
 int main(int ac, char** av)
 {
     return CommandLineTestRunner::RunAllTests(ac, av);
@@ -291,6 +309,12 @@ char *slcan_getline(void *arg)
 {
     (void) arg;
     return NULL;
+}
+
+bool bus_power(bool enable)
+{
+    mock().actualCall("bus_power").withParameter("enable", enable);
+    return true;
 }
 
 }

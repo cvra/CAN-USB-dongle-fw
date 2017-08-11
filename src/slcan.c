@@ -5,6 +5,7 @@
 #include "version.h"
 #include "can_driver.h"
 #include "slcan.h"
+#include "bus_power.h"
 
 #define MAX_FRAME_LEN (sizeof("T1111222281122334455667788EA5F\r")+1)
 
@@ -267,6 +268,16 @@ void slcan_decode_line(char *line)
     // 'Z': // timestamp on/off, Zx[CR]
     // 'm': // acceptance mask, mxxxxxxxx[CR]
     // 'M': // acceptance code, Mxxxxxxxx[CR]
+
+    /* CVRA Proprietary extensions */
+    case 'P': // Enable bus power
+        bus_power(true);
+        slcan_ack(line);
+        break;
+    case 'p': // Disable bus power
+        bus_power(false);
+        slcan_ack(line);
+        break;
     default:
         slcan_nack(line);
         break;
