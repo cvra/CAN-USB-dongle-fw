@@ -21,6 +21,7 @@ char *slcan_getline(void *arg)
             /* line found */
             line_buffer[i] = 0;
             pos = 0;
+            led_set(STATUS_LED); // show USB activity
             return line_buffer;
         } else {
             line_buffer[i] = c;
