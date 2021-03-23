@@ -40,7 +40,7 @@ static const ADCConversionGroup adcgrpcfg = {
     ADC_TR(0, 4095), /* TR1     */
     0, /* CCR     */
     {/* SMPR[2] */
-     ADC_SMPR1_SMP_AN3(ADC_SMPR_SMP_601P5),
+     ADC_SMPR1_SMP_AN3(ADC_SMPR_SMP_601P5) | ADC_SMPR1_SMP_AN5(ADC_SMPR_SMP_601P5),
      0},
     {/* SQR[4]  */
      ADC_SQR1_SQ1_N(ADC_CHANNEL_VBUS),

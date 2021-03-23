@@ -76,6 +76,12 @@ include src/board/CAN-USB-dongle/RevA/board.mk
 LDSCRIPT = rules/STM32F302x8.ld
 endif
 
+ifeq ($(TARGET), RevC)
+include src/board/CAN-USB-dongle/RevC/board.mk
+LDSCRIPT = rules/STM32F302x8.ld
+endif
+
+
 # Define project name here
 PROJECT = firmware
 
