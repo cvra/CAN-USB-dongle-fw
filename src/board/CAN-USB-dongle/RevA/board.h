@@ -327,17 +327,13 @@
 #define CAN1_STATUS_LED (1 << 1)
 #define CAN1_PWR_LED (1 << 2)
 
+#define ADC_CHANNEL_VBUS ADC_CHANNEL_IN3
+
 #if !defined(_FROM_ASM_)
 #ifdef __cplusplus
 extern "C" {
 #endif
-void usb_lld_connect_bus(void*);
-void usb_lld_disconnect_bus(void*);
-void boardInit(void);
-
-void led_toggle(unsigned int led);
-void led_set(unsigned int led);
-void led_clear(unsigned int led);
+#include "board/board_functions.h"
 #ifdef __cplusplus
 }
 #endif

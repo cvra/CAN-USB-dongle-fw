@@ -179,3 +179,18 @@ void led_clear(unsigned int led)
         palClearPad(GPIOA, GPIOA_CAN1_PWR_LED);
     }
 }
+
+void can_set_silent_mode(int silent)
+{
+    palWritePad(GPIOA, GPIOA_CAN_SILENT, silent);
+}
+
+int user_button_pressed(void)
+{
+    return palReadPad(GPIOA, GPIOA_USER_BUTTON);
+}
+
+void can_bus_power_enable(int enabled)
+{
+    palWritePad(GPIOB, GPIOB_V_BUS_ENABLE, enabled);
+}

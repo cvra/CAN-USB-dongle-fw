@@ -1,12 +1,13 @@
+#include "bus_power.h"
 #include <ch.h>
 #include <hal.h>
-#include "bus_power.h"
 
 uint16_t bus_voltage = 0;
 #define ADC_NUM_CHANNELS 1
 #define ADC_BUF_DEPTH 1
 static adcsample_t adc_samples[ADC_NUM_CHANNELS * ADC_BUF_DEPTH];
 binary_semaphore_t adc_wait;
+static bool bus_power_enabled = false;
 
 static void adc_callback(ADCDriver* adcp, adcsample_t* buffer, size_t n)
 {
@@ -28,7 +29,7 @@ static void adc_error_callback(ADCDriver* adcp, adcerror_t err)
 /*
  * ADC conversion group.
  * Mode:        Continuous, 1 sample of 1 channel, SW triggered.
- * Channels:    IN3
+ * Channels:    VBus
  */
 static const ADCConversionGroup adcgrpcfg = {
     false,
@@ -42,7 +43,7 @@ static const ADCConversionGroup adcgrpcfg = {
      ADC_SMPR1_SMP_AN3(ADC_SMPR_SMP_601P5),
      0},
     {/* SQR[4]  */
-     ADC_SQR1_SQ1_N(ADC_CHANNEL_IN3),
+     ADC_SQR1_SQ1_N(ADC_CHANNEL_VBUS),
      0,
      0,
      0}};
@@ -58,7 +59,7 @@ void bus_voltage_adc_conversion(void)
     adcStartConversion(&ADCD1, &adcgrpcfg, adc_samples, ADC_BUF_DEPTH);
     chBSemWait(&adc_wait);
 
-    // set LED
+    // Set LED if there is bus power
     float voltage = bus_voltage_get();
     if (voltage > 4.5f && voltage < 5.5f) {
         led_set(CAN1_PWR_LED);
@@ -73,20 +74,21 @@ void bus_voltage_adc_conversion(void)
 bool bus_power(bool enable)
 {
     if (enable) {
-        if (bus_voltage_get() > 0.5 && palReadPad(GPIOB, GPIOB_V_BUS_ENABLE) == 0) {
+        if (bus_voltage_get() > 0.5 && !bus_power_enabled) {
             return false;
         }
-        palSetPad(GPIOB, GPIOB_V_BUS_ENABLE);
+        can_bus_power_enable(true);
+        bus_power_enabled = true;
     } else {
-        led_clear(CAN1_PWR_LED);
-        palClearPad(GPIOB, GPIOB_V_BUS_ENABLE);
+        can_bus_power_enable(false);
+        bus_power_enabled = false;
     }
     return true;
 }
 
 void bus_power_toggle(void)
 {
-    if (palReadPad(GPIOB, GPIOB_V_BUS_ENABLE)) {
+    if (bus_power_enabled) {
         bus_power(false);
     } else {
         bus_power(true);

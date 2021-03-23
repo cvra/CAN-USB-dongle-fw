@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <ch.h>
 #include <hal.h>
 #include <string.h>
@@ -192,7 +193,7 @@ bool can_open(int mode)
     }
 
     // CAN_MODE_NORMAL
-    palClearPad(GPIOA, GPIOA_CAN_SILENT);
+    can_set_silent_mode(false);
     can_config.btr &= ~CAN_BTR_LBKM;
     can_config.btr &= ~CAN_BTR_SILM;
 
@@ -202,7 +203,7 @@ bool can_open(int mode)
             break;
         case CAN_MODE_SILENT:
             can_config.btr |= CAN_BTR_SILM;
-            palSetPad(GPIOA, GPIOA_CAN_SILENT);
+            can_set_silent_mode(true);
             break;
     };
 

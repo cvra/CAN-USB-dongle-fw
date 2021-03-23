@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+#include <stdbool.h>
+
 float bus_voltage_get(void);
 void bus_voltage_adc_conversion(void);
 bool bus_power(bool enable);
