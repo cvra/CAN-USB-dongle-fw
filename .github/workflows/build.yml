@@ -1,5 +1,10 @@
 name: STM32 builds
-on: [push]
+on:
+  push:
+  pull_request:
+  # Run a build every month (at random time) to make sure firmware does not rot
+  schedule:
+    - cron: '27 2 1 * *'
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -7,6 +12,7 @@ jobs:
       matrix:
         board:
           - RevA
+          - RevC
           - nucleo
     steps:
     - uses: actions/checkout@v2

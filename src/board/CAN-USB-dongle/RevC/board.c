@@ -120,9 +120,7 @@ bool mmc_lld_is_write_protected(MMCDriver* mmcp)
  * @brief   Board-specific initialization code.
  * @todo    Add your board-specific code, if any.
  */
-void boardInit(void)
-{
-}
+void boardInit(void) {}
 
 #if HAL_USE_USB
 void usb_lld_disconnect_bus(void* arg)
@@ -150,7 +148,7 @@ void led_toggle(unsigned int led)
         palTogglePad(GPIOB, GPIOB_CAN1_STATUS_LED);
     }
     if (led & CAN1_PWR_LED) {
-        palTogglePad(GPIOA, GPIOA_CAN1_PWR_LED);
+        palTogglePad(GPIOB, GPIOB_CAN1_PWR_LED);
     }
 }
 
@@ -163,7 +161,7 @@ void led_set(unsigned int led)
         palSetPad(GPIOB, GPIOB_CAN1_STATUS_LED);
     }
     if (led & CAN1_PWR_LED) {
-        palSetPad(GPIOA, GPIOA_CAN1_PWR_LED);
+        palSetPad(GPIOB, GPIOB_CAN1_PWR_LED);
     }
 }
 
@@ -176,13 +174,15 @@ void led_clear(unsigned int led)
         palClearPad(GPIOB, GPIOB_CAN1_STATUS_LED);
     }
     if (led & CAN1_PWR_LED) {
-        palClearPad(GPIOA, GPIOA_CAN1_PWR_LED);
+        palClearPad(GPIOB, GPIOB_CAN1_PWR_LED);
     }
 }
 
 void can_set_silent_mode(int silent)
 {
-    palWritePad(GPIOA, GPIOA_CAN_SILENT, silent);
+    // The CAN transceiver used on the RevC board has no support for silent
+    // mode, this is handled by the STM32 CAN hardware instead.
+    (void)silent;
 }
 
 int user_button_pressed(void)
@@ -192,5 +192,5 @@ int user_button_pressed(void)
 
 void can_bus_power_enable(int enabled)
 {
-    palWritePad(GPIOB, GPIOB_V_BUS_ENABLE, enabled);
+    palWritePad(GPIOA, GPIOA_V_BUS_ENABLE, enabled);
 }

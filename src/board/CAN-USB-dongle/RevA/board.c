@@ -130,7 +130,7 @@ void usb_lld_disconnect_bus(void* arg)
     (void)arg;
     palSetPadMode(GPIOA, GPIOA_OTG_FS_DM, PAL_MODE_OUTPUT_OPENDRAIN);
     palSetPadMode(GPIOA, GPIOA_OTG_FS_DP, PAL_MODE_OUTPUT_OPENDRAIN);
-    palClearPort(GPIOA, GPIOA_OTG_FS_DM | GPIOA_OTG_FS_DP);
+    palClearPort(GPIOA, (1 << GPIOA_OTG_FS_DM) | (1 << GPIOA_OTG_FS_DP));
 }
 
 void usb_lld_connect_bus(void* arg)
@@ -178,4 +178,19 @@ void led_clear(unsigned int led)
     if (led & CAN1_PWR_LED) {
         palClearPad(GPIOA, GPIOA_CAN1_PWR_LED);
     }
+}
+
+void can_set_silent_mode(int silent)
+{
+    palWritePad(GPIOA, GPIOA_CAN_SILENT, silent);
+}
+
+int user_button_pressed(void)
+{
+    return palReadPad(GPIOA, GPIOA_USER_BUTTON);
+}
+
+void can_bus_power_enable(int enabled)
+{
+    palWritePad(GPIOB, GPIOB_V_BUS_ENABLE, enabled);
 }

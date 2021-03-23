@@ -12,17 +12,17 @@ void panic(const char* reason)
 {
     (void)reason;
     led_set(STATUS_LED | CAN1_STATUS_LED | CAN1_PWR_LED);
-    palSetPad(GPIOA, GPIOA_CAN_SILENT); // CAN silent
-    palClearPad(GPIOB, GPIOB_V_BUS_ENABLE); // bus power disable
-    while (1)
-        ;
+    can_set_silent_mode(true);
+    can_bus_power_enable(false);
+    while (1) {
+    }
 }
 
 void user_button_poll(void)
 {
     static timestamp_t last_press = 0;
     static bool active = false;
-    if (palReadPad(GPIOA, GPIOA_USER_BUTTON) != 0) {
+    if (user_button_pressed()) {
         if (active && 1.0f < timestamp_duration_s(last_press, timestamp_get())) {
             bus_power_toggle();
             active = false;
