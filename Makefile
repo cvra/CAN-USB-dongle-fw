@@ -58,7 +58,7 @@ USE_FPU = no
 #
 
 # set to one of the target boards below
-TARGET = CAN-USB-dongle-RevA
+TARGET = RevA
 
 # target boards
 ifeq ($(TARGET), nucleo)
@@ -66,7 +66,7 @@ include src/board/nucleo/board.mk
 LDSCRIPT = rules/STM32F302x8.ld
 endif
 
-ifeq ($(TARGET), CAN-USB-dongle-RevA)
+ifeq ($(TARGET), RevA)
 include src/board/CAN-USB-dongle/RevA/board.mk
 LDSCRIPT = rules/STM32F302x8.ld
 endif

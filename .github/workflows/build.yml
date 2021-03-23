@@ -1,0 +1,18 @@
+name: STM32 builds
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        board:
+          - RevA
+          - nucleo
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+    - name: Build
+      uses: docker://antoinealb/cvra-ci:latest
+      with:
+        args: bash -c "cd /github/workspace/ && make TARGET=${{ matrix.board }}"
