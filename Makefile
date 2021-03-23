@@ -60,6 +60,11 @@ USE_FPU = no
 # set to one of the target boards below
 TARGET = RevA
 
+# RevB is electrically the same as RevA
+ifeq ($(TARGET), RevB)
+TARGET = RevA
+endif
+
 # target boards
 ifeq ($(TARGET), nucleo)
 include src/board/nucleo/board.mk
