@@ -7,7 +7,7 @@ extern "C" {
 
 #include <ch.h>
 
-void slcan_start(BaseChannel *ch);
+void slcan_start(BaseChannel* ch);
 
 #ifdef __cplusplus
 }

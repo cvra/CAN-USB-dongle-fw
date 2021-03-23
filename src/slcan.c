@@ -7,25 +7,25 @@
 #include "slcan.h"
 #include "bus_power.h"
 
-#define MAX_FRAME_LEN (sizeof("T1111222281122334455667788EA5F\r")+1)
+#define MAX_FRAME_LEN (sizeof("T1111222281122334455667788EA5F\r") + 1)
 
-int slcan_serial_write(void *arg, const char *buf, size_t len);
-char *slcan_getline(void *arg);
+int slcan_serial_write(void* arg, const char* buf, size_t len);
+char* slcan_getline(void* arg);
 
-static void slcan_ack(char *buf);
-static void slcan_nack(char *buf);
+static void slcan_ack(char* buf);
+static void slcan_nack(char* buf);
 
 static char hex_digit(const uint8_t b)
 {
-    static const char *hex_tbl = "0123456789abcdef";
+    static const char* hex_tbl = "0123456789abcdef";
     return hex_tbl[b & 0x0f];
 }
 
-static void hex_write(char **p, const uint8_t *data, uint8_t len)
+static void hex_write(char** p, const uint8_t* data, uint8_t len)
 {
     unsigned int i;
     for (i = 0; i < len; i++) {
-        *(*p)++ = hex_digit(data[i]>>4);
+        *(*p)++ = hex_digit(data[i] >> 4);
         *(*p)++ = hex_digit(data[i]);
     }
 }
@@ -41,25 +41,25 @@ static uint8_t hex_val(char c)
     }
 }
 
-static uint32_t hex_to_u32(const char *str, uint8_t len)
+static uint32_t hex_to_u32(const char* str, uint8_t len)
 {
     uint32_t val = 0;
     unsigned int i;
     for (i = 0; i < len; i++) {
-        val = (val<<4) | hex_val(str[i]);
+        val = (val << 4) | hex_val(str[i]);
     }
     return val;
 }
 
-static uint8_t hex_to_u8(const char *str)
+static uint8_t hex_to_u8(const char* str)
 {
     uint8_t val;
     val = hex_val(*str++);
-    val = (val<<4) | hex_val(*str);
+    val = (val << 4) | hex_val(*str);
     return val;
 }
 
-void hex_to_u8_array(const char *str, uint8_t *buf, size_t len)
+void hex_to_u8_array(const char* str, uint8_t* buf, size_t len)
 {
     while (len-- > 0) {
         *buf++ = hex_to_u8(str);
@@ -67,9 +67,9 @@ void hex_to_u8_array(const char *str, uint8_t *buf, size_t len)
     }
 }
 
-size_t slcan_frame_to_ascii(char *buf, const struct can_frame_s *f, bool timestamp)
+size_t slcan_frame_to_ascii(char* buf, const struct can_frame_s* f, bool timestamp)
 {
-    char *p = buf;
+    char* p = buf;
     uint32_t id = f->id;
 
     // type
@@ -91,12 +91,12 @@ size_t slcan_frame_to_ascii(char *buf, const struct can_frame_s *f, bool timesta
     if (f->extended) {
         int i;
         for (i = 3; i >= 0; i--) {
-            uint8_t b = id>>(8*i);
+            uint8_t b = id >> (8 * i);
             hex_write(&p, &b, 1);
         }
     } else {
-        *p++ = hex_digit(id>>8);
-        *p++ = hex_digit(id>>4);
+        *p++ = hex_digit(id >> 8);
+        *p++ = hex_digit(id >> 4);
         *p++ = hex_digit(id);
     }
 
@@ -111,7 +111,7 @@ size_t slcan_frame_to_ascii(char *buf, const struct can_frame_s *f, bool timesta
     // timestamp
     if (timestamp) {
         uint16_t t = f->timestamp;
-        uint8_t b[2] = {t>>8, t};
+        uint8_t b[2] = {t >> 8, t};
         hex_write(&p, b, 2);
     }
 
@@ -124,9 +124,9 @@ size_t slcan_frame_to_ascii(char *buf, const struct can_frame_s *f, bool timesta
 #define SLC_STD_ID_LEN 3
 #define SLC_EXT_ID_LEN 8
 
-void slcan_send_frame(char *line)
+void slcan_send_frame(char* line)
 {
-    char *out = line;
+    char* out = line;
     uint8_t data[8];
     uint8_t len;
     uint32_t id;
@@ -134,24 +134,24 @@ void slcan_send_frame(char *line)
     bool extended = false;
 
     switch (*line++) {
-    case 'r':
-        remote = true;
-        /* fallthrought */
-    case 't':
-        id = hex_to_u32(line, SLC_STD_ID_LEN);
-        line += SLC_STD_ID_LEN;
-        break;
-    case 'R':
-        remote = true;
-        /* fallthrought */
-    case 'T':
-        extended = true;
-        id = hex_to_u32(line, SLC_EXT_ID_LEN);
-        line += SLC_EXT_ID_LEN;
-        break;
-    default:
-        slcan_nack(out);
-        return;
+        case 'r':
+            remote = true;
+            /* fallthrought */
+        case 't':
+            id = hex_to_u32(line, SLC_STD_ID_LEN);
+            line += SLC_STD_ID_LEN;
+            break;
+        case 'R':
+            remote = true;
+            /* fallthrought */
+        case 'T':
+            extended = true;
+            id = hex_to_u32(line, SLC_EXT_ID_LEN);
+            line += SLC_EXT_ID_LEN;
+            break;
+        default:
+            slcan_nack(out);
+            return;
     };
 
     len = hex_val(*line++);
@@ -189,7 +189,7 @@ static void set_bitrate(char* line)
     }
 }
 
-static void slcan_open(char *line, int mode)
+static void slcan_open(char* line, int mode)
 {
     if (can_open(mode)) {
         slcan_ack(line);
@@ -198,21 +198,21 @@ static void slcan_open(char *line, int mode)
     }
 }
 
-static void slcan_close(char *line)
+static void slcan_close(char* line)
 {
     can_close();
     slcan_ack(line);
 }
 
 /** wirtes a NULL terminated ACK response */
-static void slcan_ack(char *buf)
+static void slcan_ack(char* buf)
 {
     *buf++ = '\r'; // CR
     *buf = 0;
 }
 
 /** wirtes a NULL terminated NACK response */
-static void slcan_nack(char *buf)
+static void slcan_nack(char* buf)
 {
     *buf++ = '\a'; // BELL
     *buf = 0;
@@ -223,79 +223,79 @@ reference:
 http://www.fischl.de/usbtin/
 http://www.can232.com/docs/canusb_manual.pdf
 */
-void slcan_decode_line(char *line)
+void slcan_decode_line(char* line)
 {
     switch (*line) {
-    case 'T': // extended frame
-    case 't': // standard frame
-    case 'R': // extended remote frame
-    case 'r': // standard remote frame
-        slcan_send_frame(line);
-        break;
-    case 'S': // set baud rate, S0-S9
-        set_bitrate(line);
-        break;
-    case 'O': // open CAN channel
-        slcan_open(line, CAN_MODE_NORMAL);
-        break;
-    case 'l': // open in loop back mode
-        slcan_open(line, CAN_MODE_LOOPBACK);
-        break;
-    case 'L': // open in silent mode (listen only)
-        slcan_open(line, CAN_MODE_SILENT);
-        break;
-    case 'C': // close CAN channel
-        slcan_close(line);
-        break;
-    case 'V': // hardware version
-        line = stpcpy(line, hardware_version_str);
-        slcan_ack(line);
-        break;
-    case 'v': // firmware version
-        line = stpcpy(line, software_version_str);
-        slcan_ack(line);
-        break;
-    case 'F': // read & clear status/error flags
-        line[1] = '0'; // no error
-        line[2] = '0';
-        slcan_ack(line);
-        break;
-    case '\0': // Empty line, requires an ACK to be sent back
-        slcan_ack(line);
-        break;
-    // 'N': // serial number
-    // 'F': // read status byte
-    // 'Z': // timestamp on/off, Zx[CR]
-    // 'm': // acceptance mask, mxxxxxxxx[CR]
-    // 'M': // acceptance code, Mxxxxxxxx[CR]
+        case 'T': // extended frame
+        case 't': // standard frame
+        case 'R': // extended remote frame
+        case 'r': // standard remote frame
+            slcan_send_frame(line);
+            break;
+        case 'S': // set baud rate, S0-S9
+            set_bitrate(line);
+            break;
+        case 'O': // open CAN channel
+            slcan_open(line, CAN_MODE_NORMAL);
+            break;
+        case 'l': // open in loop back mode
+            slcan_open(line, CAN_MODE_LOOPBACK);
+            break;
+        case 'L': // open in silent mode (listen only)
+            slcan_open(line, CAN_MODE_SILENT);
+            break;
+        case 'C': // close CAN channel
+            slcan_close(line);
+            break;
+        case 'V': // hardware version
+            line = stpcpy(line, hardware_version_str);
+            slcan_ack(line);
+            break;
+        case 'v': // firmware version
+            line = stpcpy(line, software_version_str);
+            slcan_ack(line);
+            break;
+        case 'F': // read & clear status/error flags
+            line[1] = '0'; // no error
+            line[2] = '0';
+            slcan_ack(line);
+            break;
+        case '\0': // Empty line, requires an ACK to be sent back
+            slcan_ack(line);
+            break;
+        // 'N': // serial number
+        // 'F': // read status byte
+        // 'Z': // timestamp on/off, Zx[CR]
+        // 'm': // acceptance mask, mxxxxxxxx[CR]
+        // 'M': // acceptance code, Mxxxxxxxx[CR]
 
-    /* CVRA Proprietary extensions */
-    case 'P': // Enable bus power
-        bus_power(true);
-        slcan_ack(line);
-        break;
-    case 'p': // Disable bus power
-        bus_power(false);
-        slcan_ack(line);
-        break;
-    default:
-        slcan_nack(line);
-        break;
+        /* CVRA Proprietary extensions */
+        case 'P': // Enable bus power
+            bus_power(true);
+            slcan_ack(line);
+            break;
+        case 'p': // Disable bus power
+            bus_power(false);
+            slcan_ack(line);
+            break;
+        default:
+            slcan_nack(line);
+            break;
     };
 }
 
-void slcan_spin(void *arg)
+void slcan_spin(void* arg)
 {
-    char *line = slcan_getline(arg);
+    char* line = slcan_getline(arg);
     if (line) {
         slcan_decode_line(line);
         slcan_serial_write(arg, line, strlen(line));
     }
 }
 
-void slcan_rx_spin(void *arg)
+void slcan_rx_spin(void* arg)
 {
-    struct can_frame_s *rxf;
+    struct can_frame_s* rxf;
     while ((rxf = can_receive()) != NULL) {
         static char txbuf[MAX_FRAME_LEN];
         size_t len;

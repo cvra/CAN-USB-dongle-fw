@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-void slcan_spin(void *arg);
+void slcan_spin(void* arg);
 
 #ifdef __cplusplus
 }

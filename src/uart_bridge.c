@@ -11,7 +11,7 @@ static THD_WORKING_AREA(uart_rx_wa, 300);
 static THD_FUNCTION(uart_rx, arg)
 {
     chRegSetThreadName("uart_rx");
-    BaseChannel *io = (BaseChannel *)arg;
+    BaseChannel* io = (BaseChannel*)arg;
     size_t len;
     static uint8_t buf[32];
     while (true) {
@@ -31,13 +31,12 @@ static THD_WORKING_AREA(uart_tx_wa, 300);
 static THD_FUNCTION(uart_tx, arg)
 {
     chRegSetThreadName("uart_tx");
-    BaseChannel *io = (BaseChannel *)arg;
+    BaseChannel* io = (BaseChannel*)arg;
     static SerialConfig uart1_config = {
         SERIAL_DEFAULT_BITRATE,
         0,
         USART_CR2_STOP1_BITS | USART_CR2_LINEN,
-        0
-    };
+        0};
     uart1_config.speed = serial_usb_get_baudrate();
     uart1_config.speed *= 2;
     sdStart(&SD1, &uart1_config);
@@ -72,7 +71,7 @@ static THD_FUNCTION(uart_tx, arg)
     }
 }
 
-void uart_bridge_start(BaseChannel *ch)
+void uart_bridge_start(BaseChannel* ch)
 {
     chThdCreateStatic(uart_tx_wa, sizeof(uart_tx_wa), NORMALPRIO, uart_tx, ch);
 }

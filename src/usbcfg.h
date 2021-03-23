@@ -24,6 +24,6 @@ extern const USBConfig usbcfg;
 extern SerialUSBConfig serusbcfg1;
 extern SerialUSBConfig serusbcfg2;
 
-#endif  /* _USBCFG_H_ */
+#endif /* _USBCFG_H_ */
 
 /** @} */

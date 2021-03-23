@@ -8,13 +8,14 @@
 #include <timestamp/timestamp.h>
 #include <timestamp/timestamp_stm32.h>
 
-void panic(const char *reason)
+void panic(const char* reason)
 {
-    (void) reason;
+    (void)reason;
     led_set(STATUS_LED | CAN1_STATUS_LED | CAN1_PWR_LED);
     palSetPad(GPIOA, GPIOA_CAN_SILENT); // CAN silent
     palClearPad(GPIOB, GPIOB_V_BUS_ENABLE); // bus power disable
-    while (1);
+    while (1)
+        ;
 }
 
 void user_button_poll(void)
@@ -58,7 +59,7 @@ int main(void)
         chThdSleepMilliseconds(10);
     }
 
-    slcan_start((BaseChannel *)&SDU1);
+    slcan_start((BaseChannel*)&SDU1);
 
     while (1) {
         user_button_poll();

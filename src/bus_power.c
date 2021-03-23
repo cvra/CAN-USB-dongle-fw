@@ -3,12 +3,12 @@
 #include "bus_power.h"
 
 uint16_t bus_voltage = 0;
-#define ADC_NUM_CHANNELS   1
-#define ADC_BUF_DEPTH      1
+#define ADC_NUM_CHANNELS 1
+#define ADC_BUF_DEPTH 1
 static adcsample_t adc_samples[ADC_NUM_CHANNELS * ADC_BUF_DEPTH];
 binary_semaphore_t adc_wait;
 
-static void adc_callback(ADCDriver *adcp, adcsample_t *buffer, size_t n)
+static void adc_callback(ADCDriver* adcp, adcsample_t* buffer, size_t n)
 {
     (void)adcp;
     (void)n;
@@ -18,7 +18,7 @@ static void adc_callback(ADCDriver *adcp, adcsample_t *buffer, size_t n)
     chSysUnlockFromISR();
 }
 
-static void adc_error_callback(ADCDriver *adcp, adcerror_t err)
+static void adc_error_callback(ADCDriver* adcp, adcerror_t err)
 {
     (void)adcp;
     (void)err;
@@ -38,21 +38,18 @@ static const ADCConversionGroup adcgrpcfg = {
     ADC_CFGR_CONT | ADC_CFGR_RES_12BITS, /* CFGR    */
     ADC_TR(0, 4095), /* TR1     */
     0, /* CCR     */
-    { /* SMPR[2] */
-        ADC_SMPR1_SMP_AN3(ADC_SMPR_SMP_601P5),
-        0
-    },
-    { /* SQR[4]  */
-        ADC_SQR1_SQ1_N(ADC_CHANNEL_IN3),
-        0,
-        0,
-        0
-    }
-};
+    {/* SMPR[2] */
+     ADC_SMPR1_SMP_AN3(ADC_SMPR_SMP_601P5),
+     0},
+    {/* SQR[4]  */
+     ADC_SQR1_SQ1_N(ADC_CHANNEL_IN3),
+     0,
+     0,
+     0}};
 
 float bus_voltage_get(void)
 {
-    return ((float)bus_voltage)/((1<<12)-1)*3.3*2;
+    return ((float)bus_voltage) / ((1 << 12) - 1) * 3.3 * 2;
 }
 
 void bus_voltage_adc_conversion(void)
