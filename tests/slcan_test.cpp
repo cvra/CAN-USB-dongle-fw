@@ -6,16 +6,14 @@
 #include "../src/can_driver.h"
 #include "../src/bus_power.h"
 
-
 extern "C" {
 #include <stdint.h>
-    size_t slcan_frame_to_ascii(char *buf, const struct can_frame_s *f, bool timestamp);
-    void slcan_send_frame(char *line);
-    void slcan_decode_line(char *line);
+size_t slcan_frame_to_ascii(char* buf, const struct can_frame_s* f, bool timestamp);
+void slcan_send_frame(char* line);
+void slcan_decode_line(char* line);
 }
 
-TEST_GROUP(SlcanTestGroup)
-{
+TEST_GROUP (SlcanTestGroup) {
     char line[100];
 
     void setup()
@@ -38,10 +36,9 @@ TEST(SlcanTestGroup, CanEncodeStandardFrame)
         .extended = false,
         .remote = false,
         .length = 4,
-        .data = {0x12, 0x89, 0xab, 0xef}
-    };
+        .data = {0x12, 0x89, 0xab, 0xef}};
     size_t len = slcan_frame_to_ascii(line, &frame, false);
-    const char *expect = "t72a41289abef\r";
+    const char* expect = "t72a41289abef\r";
     STRCMP_EQUAL(expect, line);
     CHECK_EQUAL(strlen(expect), len);
 }
@@ -54,10 +51,9 @@ TEST(SlcanTestGroup, CanEncodeExtendedFrame)
         .extended = true,
         .remote = false,
         .length = 8,
-        .data = {0,1,2,3,4,5,6,7}
-    };
+        .data = {0, 1, 2, 3, 4, 5, 6, 7}};
     size_t len = slcan_frame_to_ascii(line, &frame, false);
-    const char *expect = "T1234abcd80001020304050607\r";
+    const char* expect = "T1234abcd80001020304050607\r";
     STRCMP_EQUAL(expect, line);
     CHECK_EQUAL(strlen(expect), len);
 }
@@ -70,10 +66,9 @@ TEST(SlcanTestGroup, CanEncodeStandardRemoteFrame)
         .extended = false,
         .remote = true,
         .length = 8,
-        .data = {0}
-    };
+        .data = {0}};
     size_t len = slcan_frame_to_ascii(line, &frame, false);
-    const char *expect = "r72a8\r";
+    const char* expect = "r72a8\r";
     STRCMP_EQUAL(expect, line);
     CHECK_EQUAL(strlen(expect), len);
 }
@@ -86,10 +81,9 @@ TEST(SlcanTestGroup, CanEncodeExtendedRemoteFrame)
         .extended = true,
         .remote = true,
         .length = 4,
-        .data = {0}
-    };
+        .data = {0}};
     size_t len = slcan_frame_to_ascii(line, &frame, false);
-    const char *expect = "R1234abcd4\r";
+    const char* expect = "R1234abcd4\r";
     STRCMP_EQUAL(expect, line);
     CHECK_EQUAL(strlen(expect), len);
 }
@@ -105,7 +99,7 @@ TEST(SlcanTestGroup, CanEncodeFrameWithTimestamp)
         .data = {0x2a},
     };
     size_t len = slcan_frame_to_ascii(line, &frame, true);
-    const char *expect = "t10012adead\r";
+    const char* expect = "t10012adead\r";
     STRCMP_EQUAL(expect, line);
     CHECK_EQUAL(strlen(expect), len);
 }
@@ -113,12 +107,7 @@ TEST(SlcanTestGroup, CanEncodeFrameWithTimestamp)
 TEST(SlcanTestGroup, CanDecodeStandardFrame)
 {
     uint8_t data[] = {0x2a};
-    mock().expectOneCall("can_send")
-          .withParameter("id", 0x100)
-          .withParameter("extended", false)
-          .withParameter("remote", false)
-          .withMemoryBufferParameter("data", data, sizeof(data))
-          .withParameter("length", sizeof(data));
+    mock().expectOneCall("can_send").withParameter("id", 0x100).withParameter("extended", false).withParameter("remote", false).withMemoryBufferParameter("data", data, sizeof(data)).withParameter("length", sizeof(data));
 
     strcpy(line, "t10012a\r");
     slcan_send_frame(line);
@@ -128,13 +117,8 @@ TEST(SlcanTestGroup, CanDecodeStandardFrame)
 
 TEST(SlcanTestGroup, CanDecodeExtendedFrame)
 {
-    uint8_t data[] = {1,2,3,4,5,6,7,8};
-    mock().expectOneCall("can_send")
-          .withParameter("id", 0xabcdef)
-          .withParameter("extended", true)
-          .withParameter("remote", false)
-          .withMemoryBufferParameter("data", data, sizeof(data))
-          .withParameter("length", sizeof(data));
+    uint8_t data[] = {1, 2, 3, 4, 5, 6, 7, 8};
+    mock().expectOneCall("can_send").withParameter("id", 0xabcdef).withParameter("extended", true).withParameter("remote", false).withMemoryBufferParameter("data", data, sizeof(data)).withParameter("length", sizeof(data));
 
     strcpy(line, "T00abcdef80102030405060708\r");
     slcan_send_frame(line);
@@ -145,12 +129,7 @@ TEST(SlcanTestGroup, CanDecodeExtendedFrame)
 TEST(SlcanTestGroup, CanDecodeExtendedRemoteFrame)
 {
     uint8_t data[] = {};
-    mock().expectOneCall("can_send")
-          .withParameter("id", 0x1000)
-          .withParameter("extended", true)
-          .withParameter("remote", true)
-          .withMemoryBufferParameter("data", data, 0)
-          .withParameter("length", 8);
+    mock().expectOneCall("can_send").withParameter("id", 0x1000).withParameter("extended", true).withParameter("remote", true).withMemoryBufferParameter("data", data, 0).withParameter("length", 8);
 
     strcpy(line, "R000010008\r");
     slcan_send_frame(line);
@@ -161,12 +140,7 @@ TEST(SlcanTestGroup, CanDecodeExtendedRemoteFrame)
 TEST(SlcanTestGroup, CanDecodeStandardRemoteFrame)
 {
     uint8_t data[] = {};
-    mock().expectOneCall("can_send")
-          .withParameter("id", 0x100)
-          .withParameter("extended", false)
-          .withParameter("remote", true)
-          .withMemoryBufferParameter("data", data, 0)
-          .withParameter("length", 2);
+    mock().expectOneCall("can_send").withParameter("id", 0x100).withParameter("extended", false).withParameter("remote", true).withMemoryBufferParameter("data", data, 0).withParameter("length", 2);
 
     strcpy(line, "r1002\r");
     slcan_send_frame(line);
@@ -244,7 +218,6 @@ TEST(SlcanTestGroup, PowerOffBusCommand)
     STRCMP_EQUAL("\r", line);
 }
 
-
 int main(int ac, char** av)
 {
     return CommandLineTestRunner::RunAllTests(ac, av);
@@ -253,18 +226,13 @@ int main(int ac, char** av)
 // mocks
 extern "C" {
 
-const char * software_version_str = "software version str";
-const char * hardware_version_str = "hardware version str";
+const char* software_version_str = "software version str";
+const char* hardware_version_str = "hardware version str";
 
-bool can_send(uint32_t id, bool extended, bool remote, uint8_t *data, size_t length)
+bool can_send(uint32_t id, bool extended, bool remote, uint8_t* data, size_t length)
 {
     size_t data_length = remote ? 0 : length;
-    mock().actualCall("can_send")
-          .withParameter("id", id)
-          .withParameter("extended", extended)
-          .withParameter("remote", remote)
-          .withMemoryBufferParameter("data", data, data_length)
-          .withParameter("length", length);
+    mock().actualCall("can_send").withParameter("id", id).withParameter("extended", extended).withParameter("remote", remote).withMemoryBufferParameter("data", data, data_length).withParameter("length", length);
     return true;
 }
 
@@ -287,27 +255,27 @@ void can_close(void)
 
 /* dummy functions */
 
-int slcan_serial_write(void *arg, const char *buf, size_t len)
+int slcan_serial_write(void* arg, const char* buf, size_t len)
 {
-    (void) arg;
-    (void) buf;
-    (void) len;
+    (void)arg;
+    (void)buf;
+    (void)len;
     return 0;
 }
 
-struct can_frame_s *can_receive(void)
+struct can_frame_s* can_receive(void)
 {
     return NULL;
 }
 
-void can_frame_delete(struct can_frame_s *f)
+void can_frame_delete(struct can_frame_s* f)
 {
-    (void) f;
+    (void)f;
 }
 
-char *slcan_getline(void *arg)
+char* slcan_getline(void* arg)
 {
-    (void) arg;
+    (void)arg;
     return NULL;
 }
 
@@ -316,5 +284,4 @@ bool bus_power(bool enable)
     mock().actualCall("bus_power").withParameter("enable", enable);
     return true;
 }
-
 }
