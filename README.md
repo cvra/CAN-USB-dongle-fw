@@ -1,4 +1,6 @@
-# CVRA CAN to USB interface
+# CVRA CAN to USB interface 
+
+[![STM32 builds](https://github.com/cvra/CAN-USB-dongle-fw/actions/workflows/build.yml/badge.svg)](https://github.com/cvra/CAN-USB-dongle-fw/actions/workflows/build.yml)
 
 ## Usage
 
