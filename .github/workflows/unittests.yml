@@ -1,0 +1,23 @@
+name: Unit tests
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+    - name: Install prerequisites
+      run: |
+        sudo apt-get update -y && sudo apt-get install -y libcpputest-dev build-essential cmake
+    - name: Build
+      run: |
+        cd $GITHUB_WORKSPACE
+        mkdir build
+        cd build
+        cmake ../tests
+        make
+    - name: Test
+      run: |
+        cd $GITHUB_WORKSPACE/build
+        make check
